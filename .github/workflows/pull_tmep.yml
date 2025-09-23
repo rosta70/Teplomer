@@ -27,26 +27,32 @@ jobs:
 
       - name: Fetch JSON from tmep.cz
         run: |
+          set -euo pipefail
           URL="https://tmep.cz/vystup-json.php?id=${{ secrets.TMEP_ID }}&export_key=${{ secrets.TMEP_KEY }}"
-          echo "Fetching: $URL"
-          RESP=$(curl -s "$URL")
-          echo "Response: $RESP"
+          RESP="$(curl -sS "$URL")"
+
+          # Pokud je to pole, vezmeme poslední prvek; jinak přímo objekt
+          TEMP=$(echo "$RESP" | jq -r 'if type=="array" then (.[-1] | (.teplota // .temperature // .temp)) else (.teplota // .temperature // .temp) end // empty')
+          HUM=$(echo "$RESP"  | jq -r 'if type=="array" then (.[-1] | (.vlhkost // .humidity // .hum)) else (.vlhkost // .humidity // .hum) end // empty')
+
+          # čárka -> tečka
+          TEMP="${TEMP//,/.}"
+          HUM="${HUM//,/.}"
+
+          echo "Parsed -> TEMP='$TEMP' HUM='$HUM'"
 
           TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          TEMP=$(echo "$RESP" | jq -r '.teplota // .temperature // .temp // empty')
-          HUM=$(echo "$RESP"  | jq -r '.vlhkost // .humidity // .hum // empty')
-
-          # Převod čárka -> tečka
-          TEMP=$(echo "$TEMP" | sed 's/,/./')
-          HUM=$(echo "$HUM"   | sed 's/,/./')
-
           echo "$TS,$TEMP,$HUM" >> data/history.csv
 
       - name: Commit & push if changed
         run: |
+          set -e
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/history.csv
-          git diff --cached --quiet && echo "No new data, skip commit." && exit 0
-          git commit -m "data: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          if git diff --cached --quiet; then
+            echo "No changes."
+            exit 0
+          fi
+          git commit -m "data: $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
           git push
