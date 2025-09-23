@@ -57,7 +57,7 @@
 <script>
 (async () => {
   // Načti CSV z repozitáře (Pages root -> docs/, CSV je o úroveň výš v /data)
-  const resp = await fetch('../data/history.csv', { cache: 'no-store' });
+  const resp = await fetch('/Teplomer/data/history.csv', { cache: 'no-store' });
   const text = await resp.text();
 
   // Parse CSV (jednoduchý parser, nepočítá s uvozovkami v polích)
