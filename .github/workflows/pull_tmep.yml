@@ -1,1 +1,64 @@
+name: Pull Tmep.cz data
 
+on:
+  schedule:
+    # Každých 15 minut (cron = UTC)
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fetch-and-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Ensure data dir and header
+        run: |
+          mkdir -p data
+          if [ ! -f data/history.csv ]; then
+            echo "timestamp_iso,temp_c,humidity_pct" > data/history.csv
+          fi
+
+      - name: Fetch JSON from tmep.cz
+        run: |
+          set -euo pipefail
+          URL="https://tmep.cz/vystup-json.php?id=${{ secrets.TMEP_ID }}&export_key=${{ secrets.TMEP_KEY }}"
+          RESP="$(curl -sS "$URL")"
+          # Vytáhneme teplotu/vlhkost robustně (různé klíče, čísla s čárkou i tečkou)
+          # 1) pokud je to pole (poslední záznam)
+          TEMP=$(echo "$RESP" | jq -r '
+            (.[-1].teplota // .[-1].temperature // .[-1].temp // .teplota // .temperature // .temp // empty)
+          ' || true)
+          HUM=$(echo "$RESP" | jq -r '
+            (.[-1].vlhkost // .[-1].humidity // .[-1].hum // .vlhkost // .humidity // .hum // empty)
+          ' || true)
+
+          # Pokud nic nenašlo (prázdno/null), zkusíme vrcholové klíče ještě jednou:
+          if [ -z "$TEMP" ] || [ "$TEMP" = "null" ]; then
+            TEMP=$(echo "$RESP" | jq -r '.teplota // .temperature // .temp // empty' || true)
+          fi
+          if [ -z "$HUM" ] || [ "$HUM" = "null" ]; then
+            HUM=$(echo "$RESP" | jq -r '.vlhkost // .humidity // .hum // empty' || true)
+          fi
+
+          # Normalizace čísel (čárka -> tečka); ponecháme prázdné, pokud nic není
+          normnum () { jq -nr --arg v "${1:-}" '$v|gsub(",";"." )'; }
+          TEMP=$(normnum "$TEMP")
+          HUM=$(normnum "$HUM")
+
+          TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          echo "$TS,$TEMP,$HUM" >> data/history.csv
+
+      - name: Commit & push if changed
+        run: |
+          set -e
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/history.csv
+          git diff --quiet && echo "No changes." && exit 0
+          git commit -m "data: tmep.cz sample $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          git push
