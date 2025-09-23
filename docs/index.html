@@ -1,1 +1,190 @@
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Meteo archiv – teplota & vlhkost</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <style>
+    :root {
+      --bg: #0b1220; --card:#0e1626; --fg:#e7eef7; --muted:#a5b3c8;
+      --accent:#6ee7ff;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 24px; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial; background:var(--bg); color:var(--fg); }
+    .wrap { max-width: 1100px; margin: 0 auto; }
+    h1 { margin: 0 0 6px; font-size: 1.8rem; }
+    .sub { color: var(--muted); margin-bottom: 18px; }
+    .controls { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin: 12px 0 18px; }
+    .controls > * { background: var(--card); border:1px solid #1b2741; padding:8px 10px; border-radius:12px; }
+    label { display:flex; align-items:center; gap:8px; }
+    select, input[type="date"] { color:var(--fg); background: transparent; border:none; outline:none; }
+    button { cursor:pointer; color:var(--fg); }
+    canvas { background: var(--card); border-radius: 16px; padding: 12px; }
+    .row { display:flex; gap:12px; flex-wrap:wrap; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Meteo archiv</h1>
+    <div class="sub">Zdroj: <code>tmep.cz</code> (periodický sběr GitHub Actions) · zobrazení lokálního času</div>
+
+    <div class="controls">
+      <label><input type="checkbox" id="showTemp" checked> Teplota (°C)</label>
+      <label><input type="checkbox" id="showHum" checked> Vlhkost (%)</label>
+
+      <select id="preset">
+        <option value="today">Dnes</option>
+        <option value="7d">7 dní</option>
+        <option value="30d">30 dní</option>
+        <option value="all">Vše</option>
+        <option value="custom">Vlastní rozsah…</option>
+      </select>
+
+      <div class="row" id="customRange" style="display:none">
+        <label>Od: <input type="date" id="fromDate"></label>
+        <label>Do: <input type="date" id="toDate"></label>
+        <button id="applyRange">Použít</button>
+      </div>
+
+      <button id="dlPng">Stáhnout PNG</button>
+      <a id="dlCsv" href="../data/history.csv" download="history.csv"><button>Stáhnout CSV</button></a>
+    </div>
+
+    <canvas id="chart" height="120"></canvas>
+  </div>
+
+<script>
+(async () => {
+  // Načti CSV z repozitáře (Pages root -> docs/, CSV je o úroveň výš v /data)
+  const resp = await fetch('../data/history.csv', { cache: 'no-store' });
+  const text = await resp.text();
+
+  // Parse CSV (jednoduchý parser, nepočítá s uvozovkami v polích)
+  const lines = text.trim().split('\n');
+  const header = lines.shift().split(',');
+  const idxTs = header.indexOf('timestamp_iso');
+  const idxT  = header.indexOf('temp_c');
+  const idxH  = header.indexOf('humidity_pct');
+
+  const raw = lines.map(l => {
+    const p = l.split(',');
+    const ts = new Date(p[idxTs]); // ISO -> Date (lokální výpis až v renderu)
+    const temp = p[idxT] ? Number(p[idxT]) : null;
+    const hum  = p[idxH] ? Number(p[idxH]) : null;
+    return { ts, temp, hum };
+  }).filter(r => !isNaN(r.ts));
+
+  // GUI prvky
+  const showTemp = document.getElementById('showTemp');
+  const showHum  = document.getElementById('showHum');
+  const preset   = document.getElementById('preset');
+  const customRange = document.getElementById('customRange');
+  const fromDate = document.getElementById('fromDate');
+  const toDate   = document.getElementById('toDate');
+  const applyRange = document.getElementById('applyRange');
+  const dlPng = document.getElementById('dlPng');
+
+  const ctx = document.getElementById('chart').getContext('2d');
+  let chart;
+
+  function rangeFilter(data) {
+    const now = new Date();
+    let from = new Date(0), to = new Date(8640000000000000); // min..max
+
+    switch (preset.value) {
+      case 'today': {
+        const d0 = new Date(now); d0.setHours(0,0,0,0);
+        const d1 = new Date(now); d1.setHours(23,59,59,999);
+        from = d0; to = d1;
+        break;
+      }
+      case '7d':  from = new Date(now.getTime() - 7*24*3600*1000); break;
+      case '30d': from = new Date(now.getTime() - 30*24*3600*1000); break;
+      case 'custom': {
+        if (fromDate.value) from = new Date(fromDate.value + 'T00:00:00');
+        if (toDate.value)   to   = new Date(toDate.value   + 'T23:59:59');
+        break;
+      }
+      case 'all':
+      default: break;
+    }
+    return data.filter(d => d.ts >= from && d.ts <= to).sort((a,b)=>a.ts-b.ts);
+  }
+
+  function fmtTs(d) {
+    return d.toLocaleString('cs-CZ', { hour12:false });
+  }
+
+  function redraw() {
+    const rows = rangeFilter(raw);
+    const labels = rows.map(r => fmtTs(r.ts));
+
+    const datasets = [];
+    if (showTemp.checked) datasets.push({
+      label: 'Teplota (°C)',
+      data: rows.map(r => r.temp),
+      yAxisID: 'yTemp',
+      tension: 0.25,
+      spanGaps: true,
+      pointRadius: 0
+    });
+    if (showHum.checked) datasets.push({
+      label: 'Vlhkost (%)',
+      data: rows.map(r => r.hum),
+      yAxisID: 'yHum',
+      tension: 0.25,
+      spanGaps: true,
+      pointRadius: 0
+    });
+
+    if (chart) chart.destroy();
+    chart = new Chart(ctx, {
+      type: 'line',
+      data: { labels, datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        interaction: { mode: 'index', intersect: false },
+        scales: {
+          x: { ticks: { autoSkip: true, maxRotation: 0 } },
+          yTemp: { title: { display:true, text:'°C' }, grid: { drawBorder:false } },
+          yHum:  { position:'right', title: { display:true, text:'%' }, grid:{ drawOnChartArea:false } }
+        },
+        plugins: {
+          legend: { position: 'top' },
+          tooltip: {
+            callbacks: {
+              title: items => items[0] ? items[0].label : ''
+            }
+          }
+        }
+      }
+    });
+  }
+
+  // Preset „Vlastní“ ukáže datumy
+  preset.addEventListener('change', () => {
+    customRange.style.display = preset.value === 'custom' ? 'flex' : 'none';
+    if (preset.value !== 'custom') redraw();
+  });
+  applyRange.addEventListener('click', redraw);
+  showTemp.addEventListener('change', redraw);
+  showHum.addEventListener('change', redraw);
+
+  dlPng.addEventListener('click', () => {
+    const a = document.createElement('a');
+    a.href = chart.toBase64Image();
+    a.download = `meteo_${new Date().toISOString().slice(0,19)}.png`;
+    a.click();
+  });
+
+  // Výchozí: „Dnes“
+  preset.value = 'today';
+  redraw();
+})();
+</script>
+</body>
+</html>
 
