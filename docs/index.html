@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Meteo archiv – jednoduchý graf</title>
 
-  <!-- Jednoduše: Chart.js bez adapterů, kateg. osa -->
+  <!-- Chart.js (bez adapteru; kategorizovaná osa) -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.js"></script>
 
   <style>
@@ -22,6 +22,7 @@
     .wrap{max-width:1100px;margin:0 auto}
     h1{margin:0 0 8px}
     .sub{color:var(--muted);margin-bottom:16px}
+
     .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
     .chip{background:var(--chip);border:1px solid var(--chip-b);border-radius:10px;padding:8px 10px}
     .srcs label{margin-right:10px}
@@ -29,6 +30,11 @@
     canvas{width:100%;height:420px !important}
     .muted{color:var(--muted)}
     button{cursor:pointer;border:1px solid var(--chip-b);background:var(--chip);color:var(--fg);border-radius:10px;padding:8px 10px}
+
+    .stats {display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}
+    .stat  {background:var(--chip);border:1px solid var(--chip-b);border-radius:10px;padding:10px}
+    .stat .label{font-size:.9rem;color:var(--muted);margin-bottom:4px}
+    .stat .val{font-weight:600;line-height:1.35}
   </style>
 </head>
 <body>
@@ -47,13 +53,31 @@
           <option value="30d">Posledních 30 dní</option>
           <option value="7d">Posledních 7 dní</option>
           <option value="today">Dnes</option>
+          <option value="custom">Vlastní…</option>
         </select>
+      </div>
+
+      <div class="chip" id="customRange" style="display:none">
+        <label>Od: <input type="date" id="fromDate"></label>
+        <label>Do: <input type="date" id="toDate"></label>
+        <button id="applyRange" type="button">Použít</button>
       </div>
 
       <div class="chip srcs" id="srcToggles" title="Zap/vyp stanice"></div>
 
       <button id="theme">🌓 Režim</button>
       <a id="dlCsv" class="muted" href="#" download="history.csv">Stáhnout CSV</a>
+    </div>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="label">Min. teplota (vybraný rozsah)</div>
+        <div class="val" id="tmin">–</div>
+      </div>
+      <div class="stat">
+        <div class="label">Max. teplota (vybraný rozsah)</div>
+        <div class="val" id="tmax">–</div>
+      </div>
     </div>
 
     <div class="chart">
@@ -81,15 +105,16 @@
   }
 
   // ---------- Pomocné ----------
-  function unique(arr){ return Array.from(new Set(arr)); }
-  function by(a, b) { return a < b ? -1 : a > b ? 1 : 0; }
+  const fmt = (n,d=2)=> (n===null||n===undefined||Number.isNaN(n))?'–':Number(n).toFixed(d);
+  const unique = arr => Array.from(new Set(arr));
+  const by = (a,b)=>a<b?-1:a>b?1:0;
 
   function parseCsv(text){
     const lines = text.replace(/\uFEFF/g,'').split(/\r?\n/).filter(l=>l.trim().length>0);
     const headerIdx = lines.findIndex(l => /^timestamp_iso,/.test(l.trim()));
     const header = (headerIdx>=0?lines[headerIdx]:lines[0]).split(',');
     const idxTs = header.indexOf('timestamp_iso');
-    let   idxS  = header.indexOf('source'); // může být -1 (starý formát)
+    const idxS  = header.indexOf('source'); // může být -1 (starý formát)
     const idxT  = header.indexOf('temp_c');
     const idxH  = header.indexOf('humidity_pct');
     const rows  = (headerIdx>=0?lines.slice(headerIdx+1):lines.slice(1));
@@ -113,28 +138,27 @@
   }
 
   function buildLabels(rows){
-    // společná množina štítků napříč zdroji
     const map=new Map();
-    rows.forEach(r=>{
-      const label=r.ts.toLocaleString('cs-CZ',{hour12:false});
-      if(!map.has(label)) map.set(label,r.ts);
-    });
+    rows.forEach(r=>{ const L=r.ts.toLocaleString('cs-CZ',{hour12:false}); if(!map.has(L)) map.set(L,r.ts); });
     return Array.from(map.keys()).sort((a,b)=> by(map.get(a), map.get(b)));
   }
 
-  function rangeFilter(rows, mode){
+  function rangeFilter(rows, mode, fromDate, toDate){
     const now=new Date();
     let from=new Date(0), to=new Date(8640000000000000);
     if (mode==='today'){ const d0=new Date(now); d0.setHours(0,0,0,0); const d1=new Date(now); d1.setHours(23,59,59,999); from=d0; to=d1; }
     else if (mode==='7d')  from=new Date(now.getTime()-7*24*3600*1000);
     else if (mode==='30d') from=new Date(now.getTime()-30*24*3600*1000);
+    else if (mode==='custom'){
+      if (fromDate) from=new Date(fromDate+'T00:00:00');
+      if (toDate)   to  =new Date(toDate  +'T23:59:59');
+    }
     return rows.filter(r => r.ts>=from && r.ts<=to).sort((a,b)=>a.ts-b.ts);
   }
 
   function makeDatasets(labels, rows, enabledSources, showTemp, showHum){
     const datasets=[];
-    const srcs = enabledSources;
-    for(const src of srcs){
+    for(const src of enabledSources){
       const arr = rows.filter(r=>r.src===src);
       if (showTemp){
         const mapT=new Map(arr.map(r=>[ r.ts.toLocaleString('cs-CZ',{hour12:false}), r.temp ]));
@@ -150,17 +174,22 @@
     return datasets;
   }
 
-  // ---------- App ----------
+  // ---------- DOM prvky ----------
   const showTempEl = document.getElementById('showTemp');
   const showHumEl  = document.getElementById('showHum');
   const rangeEl    = document.getElementById('range');
+  const customWrap = document.getElementById('customRange');
+  const fromEl     = document.getElementById('fromDate');
+  const toEl       = document.getElementById('toDate');
+  const applyBtn   = document.getElementById('applyRange');
   const togglesEl  = document.getElementById('srcToggles');
   const themeBtn   = document.getElementById('theme');
   const ctx        = document.getElementById('chart').getContext('2d');
   const noDataEl   = document.getElementById('nodata');
-  let chart, RAW=[], sources=[], enabledSrc={};
+  const tminEl     = document.getElementById('tmin');
+  const tmaxEl     = document.getElementById('tmax');
 
-  // téma přepínač
+  // téma
   const savedTheme = localStorage.getItem('theme');
   if (savedTheme==='light') document.documentElement.classList.add('light');
   themeBtn.addEventListener('click', () => {
@@ -168,12 +197,13 @@
     localStorage.setItem('theme', document.documentElement.classList.contains('light')?'light':'dark');
   });
 
+  let chart, RAW=[], sources=[], enabledSrc={}, currentRange='all', currentFrom='', currentTo='';
+
   // načíst CSV a spustit
   loadCsv()
     .then(text => {
       RAW = parseCsv(text);
       sources = unique(RAW.map(r=>r.src)).sort();
-      // vytvoř checkboxy pro zdroje
       togglesEl.innerHTML = '';
       sources.forEach(src => {
         enabledSrc[src]=true;
@@ -185,19 +215,40 @@
       });
       redraw();
     })
-    .catch(err => {
-      console.error(err);
-      alert('Nepodařilo se načíst data (CSV). Ujisti se, že je v /docs/data/history.csv.');
-    });
+    .catch(err => { console.error(err); alert('Nepodařilo se načíst data (CSV). Ujisti se, že je v /docs/data/history.csv.'); });
 
-  // přepínače
-  [showTempEl, showHumEl, rangeEl].forEach(el => el.addEventListener('change', redraw));
+  // ovládání
+  showTempEl.addEventListener('change', redraw);
+  showHumEl .addEventListener('change', redraw);
+  rangeEl   .addEventListener('change', () => {
+    currentRange = rangeEl.value;
+    customWrap.style.display = (currentRange === 'custom') ? 'inline-flex' : 'none';
+    if (currentRange !== 'custom') { currentFrom=''; currentTo=''; fromEl.value=''; toEl.value=''; }
+    redraw();
+  });
+  applyBtn  .addEventListener('click', () => {
+    currentFrom = fromEl.value || '';
+    currentTo   = toEl.value   || '';
+    redraw();
+  });
+
+  function updateExtremes(rows){
+    const tRows = rows.filter(r=>r.temp!==null && !Number.isNaN(r.temp));
+    if (!tRows.length) { tminEl.textContent='–'; tmaxEl.textContent='–'; return; }
+    const minR = tRows.reduce((m,r)=> r.temp < m.temp ? r : m, tRows[0]);
+    const maxR = tRows.reduce((m,r)=> r.temp > m.temp ? r : m, tRows[0]);
+    tminEl.textContent = `${minR.temp.toFixed(2)} °C — ${minR.ts.toLocaleString('cs-CZ',{hour12:false})} (stanice ${minR.src})`;
+    tmaxEl.textContent = `${maxR.temp.toFixed(2)} °C — ${maxR.ts.toLocaleString('cs-CZ',{hour12:false})} (stanice ${maxR.src})`;
+  }
 
   function redraw(){
     const enabled = sources.filter(s => enabledSrc[s]);
-    const filtered = rangeFilter(RAW, rangeEl.value).filter(r => enabled.includes(r.src));
+    const filtered = rangeFilter(RAW, currentRange, currentFrom, currentTo).filter(r => enabled.includes(r.src));
     const labels   = buildLabels(filtered);
     const datasets = makeDatasets(labels, filtered, enabled, showTempEl.checked, showHumEl.checked);
+
+    // Extrémy teploty (za aktuální filtr + vybrané stanice)
+    updateExtremes(filtered);
 
     // když není co vykreslit
     const hasData = datasets.some(ds => ds.data.some(v => v !== null));
