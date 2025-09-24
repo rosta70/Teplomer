@@ -17,23 +17,50 @@ jobs:
       - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
 
-      - name: Ensure docs/data and header
+      - name: Ensure docs/data/history.csv and migrate header
         run: |
           mkdir -p docs/data
           if [ ! -f docs/data/history.csv ]; then
-            echo "timestamp_iso,temp_c,humidity_pct" > docs/data/history.csv
+            echo "timestamp_iso,source,temp_c,humidity_pct" > docs/data/history.csv
+          else
+            HEAD="$(head -n1 docs/data/history.csv || true)"
+            # Starý 3sloupcový formát -> doplníme source=4065 (historicky máš jen 4065)
+            if [ "$HEAD" = "timestamp_iso,temp_c,humidity_pct" ]; then
+              awk 'NR==1{print "timestamp_iso,source,temp_c,humidity_pct"; next} {print $1 ",4065," $2 "," $3}' FS=',' OFS=',' \
+                docs/data/history.csv > docs/data/history.tmp && mv docs/data/history.tmp docs/data/history.csv
+            fi
           fi
 
-      - name: Fetch JSON and append
+      - name: Fetch both stations and append
+        env:
+          TMEP1_ID:  ${{ secrets.TMEP1_ID }}
+          TMEP1_KEY: ${{ secrets.TMEP1_KEY }}
+          TMEP1_URL: ${{ secrets.TMEP1_URL }}
+          TMEP2_ID:  ${{ secrets.TMEP2_ID }}
+          TMEP2_KEY: ${{ secrets.TMEP2_KEY }}
+          TMEP2_URL: ${{ secrets.TMEP2_URL }}
         run: |
-          set -euo pipefail
-          URL="https://tmep.cz/vystup-json.php?id=${{ secrets.TMEP_ID }}&export_key=${{ secrets.TMEP_KEY }}"
-          RESP="$(curl -sS "$URL")"
-          TEMP=$(echo "$RESP" | jq -r 'if type=="array" then (.[-1]|(.teplota//.temperature//.temp)) else (.teplota//.temperature//.temp) end // empty')
-          HUM=$(echo "$RESP"  | jq -r 'if type=="array" then (.[-1]|(.vlhkost//.humidity//.hum)) else (.vlhkost//.humidity//.hum) end // empty')
-          TEMP="${TEMP//,/.}"; HUM="${HUM//,/.}"
-          TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          echo "$TS,$TEMP,$HUM" >> docs/data/history.csv
+          set -e
+          fetch_one () {
+            local id="$1" key="$2" url="$3"
+            if [ -z "$id" ] && [ -z "$url" ]; then
+              echo "skip: missing id/url"
+              return 0
+            fi
+            local URL
+            if [ -n "$url" ]; then URL="$url"; else URL="https://tmep.cz/vystup-json.php?id=$id&export_key=$key"; fi
+            echo "Fetching $URL"
+            local RESP; RESP="$(curl -sS "$URL")"
+            local TEMP HUM
+            TEMP=$(echo "$RESP" | jq -r 'if type=="array" then (.[-1]|(.teplota//.temperature//.temp)) else (.teplota//.temperature//.temp) end // empty')
+            HUM=$(echo "$RESP"  | jq -r 'if type=="array" then (.[-1]|(.vlhkost//.humidity//.hum)) else (.vlhkost//.humidity//.hum) end // empty')
+            TEMP="${TEMP//,/.}"; HUM="${HUM//,/.}"
+            local TS; TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+            local SRC="${id:-url}"
+            echo "$TS,$SRC,$TEMP,$HUM" >> docs/data/history.csv
+          }
+          fetch_one "${TMEP1_ID:-}" "${TMEP1_KEY:-}" "${TMEP1_URL:-}"
+          fetch_one "${TMEP2_ID:-}" "${TMEP2_KEY:-}" "${TMEP2_URL:-}"
 
       - name: Commit & push if changed
         run: |
@@ -41,8 +68,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add docs/data/history.csv
           if git diff --cached --quiet; then
-            echo "No changes."
-            exit 0
+            echo "No changes."; exit 0
           fi
           git commit -m "data: $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
           git push
