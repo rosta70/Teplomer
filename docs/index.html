@@ -6,7 +6,32 @@
   <title>Meteo archiv – jednoduchý graf</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.js"></script>
   <style>
-    /* ... tvoje původní CSS beze změn ... */
+    :root {
+      --bg:#0b1220; --panel:#0e1626; --fg:#e7eef7; --muted:#a5b3c8;
+      --chip:#0f1c36; --chip-b:#2f5fa8;
+    }
+    :root.light {
+      --bg:#f6f8fb; --panel:#ffffff; --fg:#0b1220; --muted:#5c6b82;
+      --chip:#eef2f9; --chip-b:#b9c7e6;
+    }
+    *{box-sizing:border-box}
+    body{margin:24px;font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial;background:var(--bg);color:var(--fg)}
+    .wrap{max-width:1100px;margin:0 auto}
+    h1{margin:0 0 8px}
+    .sub{color:var(--muted);margin-bottom:16px}
+
+    .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+    .chip{background:var(--chip);border:1px solid var(--chip-b);border-radius:10px;padding:8px 10px}
+    .srcs label{margin-right:10px}
+    .chart{background:var(--panel);border:1px solid var(--chip-b);border-radius:14px;padding:12px}
+    canvas{width:100%;height:420px !important}
+    .muted{color:var(--muted)}
+    button{cursor:pointer;border:1px solid var(--chip-b);background:var(--chip);color:var(--fg);border-radius:10px;padding:8px 10px}
+
+    .stats {display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}
+    .stat  {background:var(--chip);border:1px solid var(--chip-b);border-radius:10px;padding:10px}
+    .stat .label{font-size:.9rem;color:var(--muted);margin-bottom:4px}
+    .stat .val{font-weight:600;line-height:1.35}
   </style>
 </head>
 <body>
@@ -35,7 +60,7 @@
         <button id="applyRange" type="button">Použít</button>
       </div>
 
-      <!-- výběr souboru (naplní se dynamicky z index.json) -->
+      <!-- výběr souboru -->
       <div class="chip">
         Soubor:
         <select id="fileSelect"></select>
@@ -68,33 +93,96 @@
 (() => {
   const csvLink   = document.getElementById('dlCsv');
   const fileSelect= document.getElementById('fileSelect');
+  const showTempEl= document.getElementById('showTemp');
+  const showHumEl = document.getElementById('showHum');
+  const rangeEl   = document.getElementById('range');
+  const customWrap= document.getElementById('customRange');
+  const fromEl    = document.getElementById('fromDate');
+  const toEl      = document.getElementById('toDate');
+  const applyBtn  = document.getElementById('applyRange');
+  const togglesEl = document.getElementById('srcToggles');
+  const themeBtn  = document.getElementById('theme');
+  const ctx       = document.getElementById('chart').getContext('2d');
+  const noDataEl  = document.getElementById('nodata');
+  const tminEl    = document.getElementById('tmin');
+  const tmaxEl    = document.getElementById('tmax');
 
-  // ---------- Načtení seznamu CSV z index.json ----------
-  async function loadFileList() {
-    try {
-      const r = await fetch("data/index.json", { cache: "no-store" });
-      if (!r.ok) throw new Error("index.json nenalezen");
-      const list = await r.json();
+  if (localStorage.getItem('theme')==='light') document.documentElement.classList.add('light');
+  themeBtn.addEventListener('click', () => {
+    document.documentElement.classList.toggle('light');
+    localStorage.setItem('theme', document.documentElement.classList.contains('light')?'light':'dark');
+  });
 
-      // naplnění <select>
-      fileSelect.innerHTML = "";
-      list.forEach((file, i) => {
-        const opt = document.createElement("option");
-        opt.value = "data/" + file;
-        opt.textContent = (file === "history.csv")
-          ? "Aktuální měsíc"
-          : file.replace("history_", "").replace(".csv", "");
-        if (i === 0) opt.selected = true; // první položka
-        fileSelect.appendChild(opt);
-      });
+  const fmt = (n,d=2)=> (n===null||n===undefined||Number.isNaN(n))?'–':Number(n).toFixed(d);
+  const unique = arr => Array.from(new Set(arr));
+  const by = (a,b)=>a<b?-1:a>b?1:0;
 
-      // spustíme načtení prvního souboru
-      reload(fileSelect.value);
-    } catch (err) {
-      console.error(err);
-      alert("Nepodařilo se načíst index.json se seznamem souborů.");
+  function parseCsv(text){
+    const lines = text.replace(/\uFEFF/g,'').split(/\r?\n/).filter(l=>l.trim().length>0);
+    const headerIdx = lines.findIndex(l => /^timestamp_iso,/.test(l.trim()));
+    const header = (headerIdx>=0?lines[headerIdx]:lines[0]).split(',');
+    const idxTs = header.indexOf('timestamp_iso');
+    const idxS  = header.indexOf('source');
+    const idxT  = header.indexOf('temp_c');
+    const idxH  = header.indexOf('humidity_pct');
+    const rows  = (headerIdx>=0?lines.slice(headerIdx+1):lines.slice(1));
+
+    const out=[];
+    for(const l of rows){
+      if(/^timestamp_iso,/.test(l)) continue;
+      const p=l.split(',');
+      if (p.length < (idxS>=0?4:3)) continue;
+      const ts = new Date(p[idxTs]);
+      if (Number.isNaN(ts.getTime())) continue;
+      const src = idxS>=0 ? (p[idxS]||'').trim() : 'default';
+      const tStr=(p[idxT]||'').replace(',','.').trim();
+      const hStr=(p[idxH]||'').replace(',','.').trim();
+      const temp=tStr===''?null:Number(tStr);
+      const hum =hStr===''?null:Number(hStr);
+      if ((temp===null||Number.isNaN(temp)) && (hum===null||Number.isNaN(hum))) continue;
+      out.push({ ts, src:String(src), temp:Number.isNaN(temp)?null:temp, hum:Number.isNaN(hum)?null:hum });
     }
+    return out.sort((a,b)=>a.ts-b.ts);
   }
+
+  function buildLabels(rows){
+    const map=new Map();
+    rows.forEach(r=>{ const L=r.ts.toLocaleString('cs-CZ',{hour12:false}); if(!map.has(L)) map.set(L,r.ts); });
+    return Array.from(map.keys()).sort((a,b)=> by(map.get(a), map.get(b)));
+  }
+
+  function rangeFilter(rows, mode, fromDate, toDate){
+    const now=new Date();
+    let from=new Date(0), to=new Date(8640000000000000);
+    if (mode==='today'){ const d0=new Date(now); d0.setHours(0,0,0,0); const d1=new Date(now); d1.setHours(23,59,59,999); from=d0; to=d1; }
+    else if (mode==='7d')  from=new Date(now.getTime()-7*24*3600*1000);
+    else if (mode==='30d') from=new Date(now.getTime()-30*24*3600*1000);
+    else if (mode==='custom'){
+      if (fromDate) from=new Date(fromDate+'T00:00:00');
+      if (toDate)   to  =new Date(toDate  +'T23:59:59');
+    }
+    return rows.filter(r => r.ts>=from && r.ts<=to).sort((a,b)=>a.ts-b.ts);
+  }
+
+  function makeDatasets(labels, rows, enabledSources, showTemp, showHum){
+    const datasets=[];
+    for(const src of enabledSources){
+      const arr = rows.filter(r=>r.src===src);
+      if (showTemp){
+        const mapT=new Map(arr.map(r=>[ r.ts.toLocaleString('cs-CZ',{hour12:false}), r.temp ]));
+        const dataT = labels.map(L => mapT.has(L)? mapT.get(L): null);
+        datasets.push({ label:`Teplota (°C) – ${src}`, data:dataT, yAxisID:'yT', tension:0.25, spanGaps:true, pointRadius:0 });
+      }
+      if (showHum){
+        const mapH=new Map(arr.map(r=>[ r.ts.toLocaleString('cs-CZ',{hour12:false}), r.hum ]));
+        const dataH = labels.map(L => mapH.has(L)? mapH.get(L): null);
+        datasets.push({ label:`Vlhkost (%) – ${src}`, data:dataH, yAxisID:'yH', tension:0.25, spanGaps:true, pointRadius:0 });
+      }
+    }
+    return datasets;
+  }
+
+  let chart, RAW=[], sources=[], enabledSrc={}, currentRange='all', currentFrom='', currentTo='';
 
   async function loadCsv(fileName) {
     const r = await fetch(fileName, { cache: 'no-store' });
@@ -103,17 +191,12 @@
     return await r.text();
   }
 
-  // ---------- zbytek funkcí parseCsv, buildLabels, rangeFilter, makeDatasets, updateExtremes... (beze změny) ----------
-
-  let chart, RAW=[], sources=[], enabledSrc={}, currentRange='all', currentFrom='', currentTo='';
-
   async function reload(fileName) {
     try {
       const text = await loadCsv(fileName);
       RAW = parseCsv(text);
       sources = unique(RAW.map(r=>r.src)).sort();
       enabledSrc = {};
-      const togglesEl = document.getElementById('srcToggles');
       togglesEl.innerHTML = '';
       sources.forEach(src => {
         enabledSrc[src]=true;
@@ -130,13 +213,102 @@
     }
   }
   window.reload = reload;
+
+  function updateExtremes(rows){
+    const tRows = rows.filter(r=>r.temp!==null && !Number.isNaN(r.temp));
+    if (!tRows.length) { tminEl.textContent='–'; tmaxEl.textContent='–'; return; }
+    const minR = tRows.reduce((m,r)=> r.temp < m.temp ? r : m, tRows[0]);
+    const maxR = tRows.reduce((m,r)=> r.temp > m.temp ? r : m, tRows[0]);
+    tminEl.textContent = `${minR.temp.toFixed(2)} °C — ${minR.ts.toLocaleString('cs-CZ',{hour12:false})} (stanice ${minR.src})`;
+    tmaxEl.textContent = `${maxR.temp.toFixed(2)} °C — ${maxR.ts.toLocaleString('cs-CZ',{hour12:false})} (stanice ${maxR.src})`;
+  }
+
+  function redraw(){
+    const enabled = sources.filter(s => enabledSrc[s]);
+    const filtered = rangeFilter(RAW, currentRange, currentFrom, currentTo).filter(r => enabled.includes(r.src));
+    const labels   = buildLabels(filtered);
+    const datasets = makeDatasets(labels, filtered, enabled, showTempEl.checked, showHumEl.checked);
+
+    updateExtremes(filtered);
+
+    const hasData = datasets.some(ds => ds.data.some(v => v !== null));
+    if (!labels.length || !hasData){
+      if (chart){ chart.destroy(); chart=null; }
+      noDataEl.style.display='block';
+      return;
+    } else {
+      noDataEl.style.display='none';
+    }
+
+    const tVals = datasets.filter(d=>d.yAxisID==='yT').flatMap(d=>d.data).filter(v=>v!==null&&!Number.isNaN(v));
+    const tMin  = tVals.length? Math.min(...tVals) : undefined;
+    const tMax  = tVals.length? Math.max(...tVals) : undefined;
+    const yTopt = (tMin!==undefined && tMax!==undefined) ? {
+      suggestedMin: tMin - Math.abs(tMax - tMin)*0.1,
+      suggestedMax: tMax + Math.abs(tMax - tMin)*0.1
+    } : {};
+
+    if (chart) chart.destroy();
+    chart = new Chart(ctx, {
+      type:'line',
+      data:{ labels, datasets },
+      options:{
+        responsive:true, maintainAspectRatio:false, animation:false,
+        interaction:{ mode:'index', intersect:false },
+        scales:{
+          x:{ ticks:{ autoSkip:true, maxRotation:0 } },
+          yT:{ title:{display:true, text:'°C'}, grid:{drawBorder:false}, ...yTopt },
+          yH:{ position:'right', title:{display:true, text:'%'}, grid:{drawOnChartArea:false}, suggestedMin:0, suggestedMax:100 }
+        },
+        plugins:{ legend:{ position:'top' } }
+      }
+    });
+  }
   window.redraw = redraw;
 
-  // ---------- eventy ----------
-  fileSelect.addEventListener("change", () => reload(fileSelect.value));
+  // ovládání
+  showTempEl.addEventListener('change', redraw);
+  showHumEl .addEventListener('change', redraw);
+  rangeEl   .addEventListener('change', () => {
+    currentRange = rangeEl.value;
+    customWrap.style.display = (currentRange === 'custom') ? 'inline-flex' : 'none';
+    if (currentRange !== 'custom') { currentFrom=''; currentTo=''; fromEl.value=''; toEl.value=''; }
+    redraw();
+  });
+  applyBtn  .addEventListener('click', () => {
+    currentFrom = fromEl.value || '';
+    currentTo   = toEl.value   || '';
+    redraw();
+  });
+  fileSelect.addEventListener('change', () => reload(fileSelect.value));
 
-  // ---------- start ----------
-  loadFileList(); // <- načteme seznam z index.json
+  // ---------- Načtení seznamu CSV z index.json ----------
+  async function loadFileList() {
+    try {
+      const r = await fetch("data/index.json", { cache: "no-store" });
+      if (!r.ok) throw new Error("index.json nenalezen");
+      const list = await r.json();
+
+      fileSelect.innerHTML = "";
+      list.forEach((file, i) => {
+        const opt = document.createElement("option");
+        opt.value = "data/" + file;
+        opt.textContent = (file === "history.csv")
+          ? "Aktuální měsíc"
+          : file.replace("history_", "").replace(".csv", "");
+        if (i === 0) opt.selected = true;
+        fileSelect.appendChild(opt);
+      });
+
+      reload(fileSelect.value);
+    } catch (err) {
+      console.error(err);
+      alert("Nepodařilo se načíst index.json se seznamem souborů.");
+    }
+  }
+
+  // start
+  loadFileList();
 })();
 </script>
 </body>
