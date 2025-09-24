@@ -325,7 +325,7 @@
     if (aggSel.value === 'hour') rows = aggregateHourly(rows);
 
     // 3) vyhlazení (jen vizuální – MA-5)
-    const labels = rows.map(r => r.ts);
+    const labels = rows.map(r => r.ts.toLocaleString('cs-CZ', { hour12:false }));
     let tData = rows.map(r => r.temp);
     let hData = rows.map(r => r.hum);
     if (smooth.checked) {
@@ -369,7 +369,7 @@
         animation:false,
         interaction:{ mode:'index', intersect:false },
         scales:{
-          x:{ type:'time', time:{ tooltipFormat:'Pp' }, ticks:{ autoSkip:true, maxRotation:0 } },
+          x:{ ticks:{ autoSkip:true, maxRotation:0 } },
           yTemp:{ title:{ display:true, text:'°C' }, grid:{ drawBorder:false }, ...tRange },
           yHum:{ position:'right', title:{ display:true, text:'%' }, grid:{ drawOnChartArea:false }, suggestedMin:0, suggestedMax:100 }
         },
