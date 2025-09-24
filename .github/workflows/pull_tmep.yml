@@ -2,7 +2,8 @@ name: Pull Tmep.cz data
 
 on:
   schedule:
-    - cron: "*/10 * * * *"
+    - cron: "3,13,23,33,43,53 * * * *"   # primární sloty (UTC)
+    - cron: "8,18,28,38,48,58 * * * *"   # záložní sloty (UTC)
   workflow_dispatch:
 
 permissions:
@@ -11,64 +12,102 @@ permissions:
 jobs:
   fetch-and-commit:
     runs-on: ubuntu-latest
+    env:
+      # kolik sekund musí uplynout od posledního řádku pro daný 'source', aby se přidával nový
+      DEDUP_WINDOW_SEC: "420"  # 7 minut
+
+      # secrets pro dvě stanice (přidej do repo Settings → Secrets → Actions)
+      TMEP1_ID:  ${{ secrets.TMEP1_ID }}    # např. 4065
+      TMEP1_KEY: ${{ secrets.TMEP1_KEY }}
+      TMEP1_URL: ${{ secrets.TMEP1_URL }}   # volitelně celá URL místo ID/KEY
+
+      TMEP2_ID:  ${{ secrets.TMEP2_ID }}    # např. 2764
+      TMEP2_KEY: ${{ secrets.TMEP2_KEY }}
+      TMEP2_URL: ${{ secrets.TMEP2_URL }}   # volitelně celá URL místo ID/KEY
+
     steps:
       - uses: actions/checkout@v4
 
       - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
 
-      - name: Ensure docs/data/history.csv and migrate header
+      - name: Ensure docs/data and header (migrate if needed)
         run: |
           mkdir -p docs/data
           if [ ! -f docs/data/history.csv ]; then
             echo "timestamp_iso,source,temp_c,humidity_pct" > docs/data/history.csv
           else
             HEAD="$(head -n1 docs/data/history.csv || true)"
-            # Starý 3sloupcový formát -> doplníme source=4065 (historicky máš jen 4065)
+            # starý 3-sloupcový formát -> doplníme source=4065 (historické řádky z jedné stanice)
             if [ "$HEAD" = "timestamp_iso,temp_c,humidity_pct" ]; then
+              echo "Migrating CSV to 4 columns (adding source=4065)..."
               awk 'NR==1{print "timestamp_iso,source,temp_c,humidity_pct"; next} {print $1 ",4065," $2 "," $3}' FS=',' OFS=',' \
                 docs/data/history.csv > docs/data/history.tmp && mv docs/data/history.tmp docs/data/history.csv
             fi
           fi
 
-      - name: Fetch both stations and append
-        env:
-          TMEP1_ID:  ${{ secrets.TMEP1_ID }}
-          TMEP1_KEY: ${{ secrets.TMEP1_KEY }}
-          TMEP1_URL: ${{ secrets.TMEP1_URL }}
-          TMEP2_ID:  ${{ secrets.TMEP2_ID }}
-          TMEP2_KEY: ${{ secrets.TMEP2_KEY }}
-          TMEP2_URL: ${{ secrets.TMEP2_URL }}
+      - name: Fetch both stations (with de-dup)
         run: |
-          set -e
-          fetch_one () {
+          set -euo pipefail
+          now_epoch=$(date -u +%s)
+
+          append_if_needed () {
             local id="$1" key="$2" url="$3"
-            if [ -z "$id" ] && [ -z "$url" ]; then
-              echo "skip: missing id/url"
+
+            # přeskoč, pokud chybí jak ID/KEY tak URL
+            if [ -z "${id}${url}" ]; then
+              echo "⏭️  Missing ID/URL, skipping."
               return 0
             fi
-            local URL
-            if [ -n "$url" ]; then URL="$url"; else URL="https://tmep.cz/vystup-json.php?id=$id&export_key=$key"; fi
-            echo "Fetching $URL"
-            local RESP; RESP="$(curl -sS "$URL")"
-            local TEMP HUM
-            TEMP=$(echo "$RESP" | jq -r 'if type=="array" then (.[-1]|(.teplota//.temperature//.temp)) else (.teplota//.temperature//.temp) end // empty')
-            HUM=$(echo "$RESP"  | jq -r 'if type=="array" then (.[-1]|(.vlhkost//.humidity//.hum)) else (.vlhkost//.humidity//.hum) end // empty')
-            TEMP="${TEMP//,/.}"; HUM="${HUM//,/.}"
-            local TS; TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
             local SRC="${id:-url}"
+            local URL
+            if [ -n "$url" ]; then
+              URL="$url"
+            else
+              URL="https://tmep.cz/vystup-json.php?id=$id&export_key=$key"
+            fi
+
+            echo "→ Fetching source=$SRC : $URL"
+            RESP="$(curl -sS "$URL" || true)"
+            if [ -z "$RESP" ]; then
+              echo "⚠️  Empty response from $SRC, skipping."
+              return 0
+            fi
+
+            # vytažení hodnot (pole/objekt; různé klíče; čárka→tečka)
+            TEMP=$(echo "$RESP" | jq -r 'if type=="array" then (.[-1]|(.teplota//.temperature//.temp)) else (.teplota//.temperature//.temp) end // empty' || true)
+            HUM=$(echo "$RESP"  | jq -r 'if type=="array" then (.[-1]|(.vlhkost//.humidity//.hum)) else (.vlhkost//.humidity//.hum) end // empty' || true)
+            TEMP="${TEMP//,/.}"; HUM="${HUM//,/.}"
+
+            # deduplikace: poslední timestamp pro stejný 'source'
+            last_iso="$(awk -F, -v s="$SRC" '$2==s {x=$1} END{print x}' docs/data/history.csv)"
+            if [ -n "$last_iso" ]; then
+              last_epoch=$(date -u -d "$last_iso" +%s || echo 0)
+              age=$(( now_epoch - last_epoch ))
+              if [ "$age" -lt "${DEDUP_WINDOW_SEC}" ]; then
+                echo "⏭️  Last row for source=$SRC is ${age}s old (< ${DEDUP_WINDOW_SEC}s). Skipping to avoid duplicate."
+                return 0
+              fi
+            fi
+
+            TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
             echo "$TS,$SRC,$TEMP,$HUM" >> docs/data/history.csv
+            echo "✓ Appended: $TS,$SRC,$TEMP,$HUM"
           }
-          fetch_one "${TMEP1_ID:-}" "${TMEP1_KEY:-}" "${TMEP1_URL:-}"
-          fetch_one "${TMEP2_ID:-}" "${TMEP2_KEY:-}" "${TMEP2_URL:-}"
+
+          append_if_needed "${TMEP1_ID:-}" "${TMEP1_KEY:-}" "${TMEP1_URL:-}"
+          append_if_needed "${TMEP2_ID:-}" "${TMEP2_KEY:-}" "${TMEP2_URL:-}"
 
       - name: Commit & push if changed
         run: |
+          set -e
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add docs/data/history.csv
           if git diff --cached --quiet; then
-            echo "No changes."; exit 0
+            echo "No changes to commit."
+            exit 0
           fi
           git commit -m "data: $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
           git push
