@@ -9,24 +9,27 @@ on:
 permissions:
   contents: write
 
+# Nedovolí souběžné běhy tohoto workflow – předejde kolizím při zápisu
+concurrency:
+  group: tmep-append
+  cancel-in-progress: false
+
 jobs:
   fetch-and-commit:
     runs-on: ubuntu-latest
     env:
-      # kolik sekund musí uplynout od posledního řádku pro daný 'source', aby se přidával nový
       DEDUP_WINDOW_SEC: "420"  # 7 minut
-
-      # secrets pro dvě stanice (přidej do repo Settings → Secrets → Actions)
-      TMEP1_ID:  ${{ secrets.TMEP1_ID }}    # např. 4065
+      TMEP1_ID:  ${{ secrets.TMEP1_ID }}
       TMEP1_KEY: ${{ secrets.TMEP1_KEY }}
-      TMEP1_URL: ${{ secrets.TMEP1_URL }}   # volitelně celá URL místo ID/KEY
-
-      TMEP2_ID:  ${{ secrets.TMEP2_ID }}    # např. 2764
+      TMEP1_URL: ${{ secrets.TMEP1_URL }}
+      TMEP2_ID:  ${{ secrets.TMEP2_ID }}
       TMEP2_KEY: ${{ secrets.TMEP2_KEY }}
-      TMEP2_URL: ${{ secrets.TMEP2_URL }}   # volitelně celá URL místo ID/KEY
+      TMEP2_URL: ${{ secrets.TMEP2_URL }}
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # plná historie, aby šel rebase
 
       - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
@@ -38,7 +41,6 @@ jobs:
             echo "timestamp_iso,source,temp_c,humidity_pct" > docs/data/history.csv
           else
             HEAD="$(head -n1 docs/data/history.csv || true)"
-            # starý 3-sloupcový formát -> doplníme source=4065 (historické řádky z jedné stanice)
             if [ "$HEAD" = "timestamp_iso,temp_c,humidity_pct" ]; then
               echo "Migrating CSV to 4 columns (adding source=4065)..."
               awk 'NR==1{print "timestamp_iso,source,temp_c,humidity_pct"; next} {print $1 ",4065," $2 "," $3}' FS=',' OFS=',' \
@@ -53,40 +55,28 @@ jobs:
 
           append_if_needed () {
             local id="$1" key="$2" url="$3"
-
-            # přeskoč, pokud chybí jak ID/KEY tak URL
             if [ -z "${id}${url}" ]; then
               echo "⏭️  Missing ID/URL, skipping."
               return 0
             fi
-
             local SRC="${id:-url}"
             local URL
-            if [ -n "$url" ]; then
-              URL="$url"
-            else
-              URL="https://tmep.cz/vystup-json.php?id=$id&export_key=$key"
-            fi
+            if [ -n "$url" ]; then URL="$url"; else URL="https://tmep.cz/vystup-json.php?id=$id&export_key=$key"; fi
 
-            echo "→ Fetching source=$SRC : $URL"
+            echo "→ Fetching source=$SRC"
             RESP="$(curl -sS "$URL" || true)"
-            if [ -z "$RESP" ]; then
-              echo "⚠️  Empty response from $SRC, skipping."
-              return 0
-            fi
+            [ -z "$RESP" ] && { echo "⚠️  Empty response"; return 0; }
 
-            # vytažení hodnot (pole/objekt; různé klíče; čárka→tečka)
             TEMP=$(echo "$RESP" | jq -r 'if type=="array" then (.[-1]|(.teplota//.temperature//.temp)) else (.teplota//.temperature//.temp) end // empty' || true)
             HUM=$(echo "$RESP"  | jq -r 'if type=="array" then (.[-1]|(.vlhkost//.humidity//.hum)) else (.vlhkost//.humidity//.hum) end // empty' || true)
             TEMP="${TEMP//,/.}"; HUM="${HUM//,/.}"
 
-            # deduplikace: poslední timestamp pro stejný 'source'
             last_iso="$(awk -F, -v s="$SRC" '$2==s {x=$1} END{print x}' docs/data/history.csv)"
             if [ -n "$last_iso" ]; then
               last_epoch=$(date -u -d "$last_iso" +%s || echo 0)
               age=$(( now_epoch - last_epoch ))
               if [ "$age" -lt "${DEDUP_WINDOW_SEC}" ]; then
-                echo "⏭️  Last row for source=$SRC is ${age}s old (< ${DEDUP_WINDOW_SEC}s). Skipping to avoid duplicate."
+                echo "⏭️  Last row for source=$SRC is ${age}s old (< ${DEDUP_WINDOW_SEC}s). Skipping."
                 return 0
               fi
             fi
@@ -99,15 +89,31 @@ jobs:
           append_if_needed "${TMEP1_ID:-}" "${TMEP1_KEY:-}" "${TMEP1_URL:-}"
           append_if_needed "${TMEP2_ID:-}" "${TMEP2_KEY:-}" "${TMEP2_URL:-}"
 
-      - name: Commit & push if changed
+      - name: Commit, rebase & push (with retry)
         run: |
           set -e
-          git config user.name "github-actions[bot]"
+          git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
           git add docs/data/history.csv
           if git diff --cached --quiet; then
             echo "No changes to commit."
             exit 0
           fi
+
           git commit -m "data: $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
-          git push
+
+          # Pull-rebase & retry push až 3x (pro případ, že mezitím proběhl jiný běh)
+          for i in 1 2 3; do
+            git pull --rebase origin main || true
+            if git push origin HEAD:main; then
+              echo "✅ Pushed on attempt $i"
+              break
+            fi
+            echo "⚠️  Push failed (attempt $i). Retrying…"
+            sleep $((RANDOM % 5 + 2))
+            if [ "$i" = "3" ]; then
+              echo "❌ Push failed after 3 attempts."
+              exit 1
+            fi
+          done
