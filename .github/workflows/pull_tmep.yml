@@ -12,44 +12,34 @@ jobs:
   fetch-and-commit:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
 
-      - name: Ensure data dir and header
+      - name: Ensure docs/data and header
         run: |
-          mkdir -p data
-          if [ ! -f data/history.csv ]; then
-            echo "timestamp_iso,temp_c,humidity_pct" > data/history.csv
+          mkdir -p docs/data
+          if [ ! -f docs/data/history.csv ]; then
+            echo "timestamp_iso,temp_c,humidity_pct" > docs/data/history.csv
           fi
 
-      - name: Fetch JSON from tmep.cz
+      - name: Fetch JSON and append
         run: |
           set -euo pipefail
           URL="https://tmep.cz/vystup-json.php?id=${{ secrets.TMEP_ID }}&export_key=${{ secrets.TMEP_KEY }}"
           RESP="$(curl -sS "$URL")"
-
-          # Pokud je to pole, vezmeme poslední prvek; jinak přímo objekt
-          TEMP=$(echo "$RESP" | jq -r 'if type=="array" then (.[-1] | (.teplota // .temperature // .temp)) else (.teplota // .temperature // .temp) end // empty')
-          HUM=$(echo "$RESP"  | jq -r 'if type=="array" then (.[-1] | (.vlhkost // .humidity // .hum)) else (.vlhkost // .humidity // .hum) end // empty')
-
-          # čárka -> tečka
-          TEMP="${TEMP//,/.}"
-          HUM="${HUM//,/.}"
-
-          echo "Parsed -> TEMP='$TEMP' HUM='$HUM'"
-
+          TEMP=$(echo "$RESP" | jq -r 'if type=="array" then (.[-1]|(.teplota//.temperature//.temp)) else (.teplota//.temperature//.temp) end // empty')
+          HUM=$(echo "$RESP"  | jq -r 'if type=="array" then (.[-1]|(.vlhkost//.humidity//.hum)) else (.vlhkost//.humidity//.hum) end // empty')
+          TEMP="${TEMP//,/.}"; HUM="${HUM//,/.}"
           TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          echo "$TS,$TEMP,$HUM" >> data/history.csv
+          echo "$TS,$TEMP,$HUM" >> docs/data/history.csv
 
       - name: Commit & push if changed
         run: |
-          set -e
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/history.csv
+          git add docs/data/history.csv
           if git diff --cached --quiet; then
             echo "No changes."
             exit 0
