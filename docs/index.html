@@ -4,26 +4,28 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Meteo archiv – teplota & vlhkost</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+
+  <!-- Chart.js (UMD) – bez adapteru, jedeme na kategorické ose -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.js"></script>
+
   <style>
     :root {
       /* Tmavý motiv (výchozí) */
-      --bg:#0b1220; --card:#0ffffff0; --fg:#e7eef7; --muted:#a5b3c8;
+      --bg:#0b1220; --panel:#0e1626; --fg:#e7eef7; --muted:#a5b3c8;
       --accent:#78c6ff;
       --chip-bg:#0f1c36; --chip-border:#2f5fa8; --chip-hover:#173b6a; --chip-active:#1f4c8f;
       --ok:#64d97a; --warn:#ffb86b; --err:#ff6b8b;
-      --panel:#0e1626;
     }
-    /* Světlý motiv */
     :root.light {
-      --bg:#f6f8fb; --panel:#ffffff; --card:#ffffff; --fg:#0b1220; --muted:#5c6b82;
+      --bg:#f6f8fb; --panel:#ffffff; --fg:#0b1220; --muted:#5c6b82;
       --accent:#2b6bff;
       --chip-bg:#eef2f9; --chip-border:#b9c7e6; --chip-hover:#dfe9ff; --chip-active:#c9dbff;
       --ok:#128a3a; --warn:#c06600; --err:#c21f3a;
     }
 
     * { box-sizing: border-box; }
-    body { margin:24px; font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial; background:var(--bg); color:var(--fg); }
+    body { margin:24px; font-family: ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial;
+           background:var(--bg); color:var(--fg); }
     .wrap { max-width:1100px; margin:0 auto; }
     h1 { margin:0 0 6px; font-size:1.8rem; }
     .sub { color:var(--muted); margin-bottom:18px; }
@@ -36,30 +38,27 @@
     button:hover { background:var(--chip-hover); border-color:#3a79d9; }
     button:active { background:var(--chip-active); border-color:#4894ff; }
 
-    /* PILULKY */
     .pill-group { display:flex; gap:8px; }
-    .pill {
-      background: var(--chip-bg); border: 1px solid var(--chip-border); color: var(--fg);
-      padding: 8px 14px; border-radius: 9999px; cursor: pointer; user-select: none;
-    }
-    .pill:hover { background: var(--chip-hover); border-color:#3a79d9; }
-    .pill[aria-pressed="true"] { background: var(--chip-active); border-color:#4894ff; }
+    .pill { background:var(--chip-bg); border:1px solid var(--chip-border); color:var(--fg);
+            padding:8px 14px; border-radius:9999px; cursor:pointer; user-select:none; }
+    .pill:hover { background:var(--chip-hover); border-color:#3a79d9; }
+    .pill[aria-pressed="true"] { background:var(--chip-active); border-color:#4894ff; }
 
     .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-    input[type="date"] { color:var(--fg); background:transparent; border:none; outline:none; }
+    input[type="date"] { background:transparent; border:none; color:var(--fg); outline:none; }
 
     .chip-select { display:flex; gap:6px; align-items:center; }
     .chip-select select { background:transparent; border:none; color:var(--fg); outline:none; }
 
-    /* Statistiky */
-    .stats { margin-top:12px; background:var(--panel); border:1px solid var(--chip-border); border-radius:14px; padding:12px; }
-    .stats-grid { display:grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap:8px; }
+    .stats { margin-top:12px; background:var(--panel); border:1px solid var(--chip-border);
+             border-radius:14px; padding:12px; }
+    .stats-grid { display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:8px; }
     .stat { padding:8px; background:var(--chip-bg); border:1px solid var(--chip-border); border-radius:10px; min-height:56px; }
     .stat .label { color:var(--muted); font-size:.85rem; }
     .stat .val { font-weight:600; }
 
-    /* Graf */
-    .chart-wrap { background:var(--panel); border:1px solid var(--chip-border); border-radius:16px; padding:12px; margin-top:10px; }
+    .chart-wrap { background:var(--panel); border:1px solid var(--chip-border);
+                  border-radius:16px; padding:12px; margin-top:10px; }
     canvas { width:100%; height:420px !important; }
     .nodata { padding:32px; text-align:center; color:var(--muted); }
   </style>
@@ -90,7 +89,7 @@
       <div class="chip-select">
         <span>Agregace:</span>
         <select id="agg">
-          <option value="raw">Žádná</option>
+          <option value="raw" selected>Žádná</option>
           <option value="hour">Po hodinách</option>
         </select>
       </div>
@@ -107,7 +106,7 @@
         <div class="stat"><div class="label">Body</div><div class="val" id="s-count">–</div></div>
         <div class="stat"><div class="label">Teplota min / max / průměr (°C)</div><div class="val" id="s-t">–</div></div>
         <div class="stat"><div class="label">Vlhkost min / max / průměr (%)</div><div class="val" id="s-h">–</div></div>
-        <div class="stat"><div class="label">Výpadky (>= 2× běžný interval)</div><div class="val" id="s-gaps">–</div></div>
+        <div class="stat"><div class="label">Pozorované výpadky</div><div class="val" id="s-gaps">–</div></div>
       </div>
     </div>
 
@@ -118,267 +117,231 @@
   </div>
 
 <script>
-(async () => {
-  // ------- Pomocné -------
+(() => {
+  // ---------- Helpery ----------
   const base = location.pathname.split('/').filter(Boolean)[0] || '';
   const CSV_URL = `/${base ? base + '/' : ''}data/history.csv`;
   document.getElementById('dlCsv').href = CSV_URL;
 
   const fmt = (n, d=2) => (n===null || n===undefined || Number.isNaN(n)) ? '–' : Number(n).toFixed(d);
-  const avg = arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : NaN;
-  const median = arr => {
-    if (!arr.length) return NaN;
-    const s = arr.slice().sort((a,b)=>a-b); const m = Math.floor(s.length/2);
-    return s.length%2 ? s[m] : (s[m-1]+s[m])/2;
-  };
-  function movingAverage(data, win=5) {
-    const out = Array(data.length).fill(null);
+  const avg = a => a.length ? a.reduce((x,y)=>x+y,0)/a.length : NaN;
+
+  function movingAverage(arr, win=5) {
+    const out = Array(arr.length).fill(null);
     let q = [];
-    for (let i=0;i<data.length;i++) {
-      const v = data[i];
+    for (let i=0;i<arr.length;i++){
+      const v = arr[i];
       if (v!==null && !Number.isNaN(v)) q.push(v);
       if (q.length>win) q.shift();
-      out[i] = q.length ? q.reduce((a,b)=>a+b,0)/q.length : null;
+      out[i] = q.length ? q.reduce((x,y)=>x+y,0)/q.length : null;
     }
     return out;
   }
   function aggregateHourly(rows) {
-    const map = new Map(); // key: YYYY-MM-DD-HH
+    const map = new Map();
     for (const r of rows) {
       const d = new Date(r.ts);
       const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}-${String(d.getHours()).padStart(2,'0')}`;
       let o = map.get(key);
-      if (!o) { o = { ts: new Date(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours()), t: [], h: [] }; map.set(key, o); }
+      if (!o) { o = { ts:new Date(d.getFullYear(),d.getMonth(),d.getDate(),d.getHours()), t:[], h:[] }; map.set(key,o); }
       if (r.temp!==null && !Number.isNaN(r.temp)) o.t.push(r.temp);
       if (r.hum !==null && !Number.isNaN(r.hum )) o.h.push(r.hum);
     }
     return Array.from(map.values()).sort((a,b)=>a.ts-b.ts).map(o => ({
-      ts: o.ts,
-      temp: o.t.length ? o.t.reduce((a,b)=>a+b,0)/o.t.length : null,
-      hum:  o.h.length ? o.h.reduce((a,b)=>a+b,0)/o.h.length : null,
+      ts:o.ts,
+      temp:o.t.length ? o.t.reduce((x,y)=>x+y,0)/o.t.length : null,
+      hum: o.h.length ? o.h.reduce((x,y)=>x+y,0)/o.h.length : null
     }));
   }
 
-  // Načtení CSV
-  let text = '';
-  try {
-    const resp = await fetch(CSV_URL, { cache: 'no-store' });
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    text = await resp.text();
-  } catch (e) {
-    console.error('Načtení CSV selhalo:', e);
-    alert('Nepodařilo se načíst data (CSV). Ověř, že je v /docs/data/history.csv.');
-    return;
-  }
+  // ---------- Načtení CSV ----------
+  fetch(CSV_URL, { cache:'no-store' })
+    .then(r => { if(!r.ok) throw new Error(`HTTP ${r.status}`); return r.text(); })
+    .then(text => {
+      const lines = text.replace(/\uFEFF/g,'').split(/\r?\n/).filter(l => l.trim().length>0);
+      const headerIdx = lines.findIndex(l => /^timestamp_iso,/.test(l.trim()));
+      const header = (headerIdx>=0 ? lines[headerIdx] : lines[0]).split(',');
+      const idxTs = header.indexOf('timestamp_iso');
+      const idxT  = header.indexOf('temp_c');
+      const idxH  = header.indexOf('humidity_pct');
+      const rows  = (headerIdx>=0 ? lines.slice(headerIdx+1) : lines.slice(1));
 
-  // Parsing CSV
-  const lines = text.replace(/\uFEFF/g,'').split(/\r?\n/).filter(l => l.trim().length > 0);
-  const headerIdx = lines.findIndex(l => /^timestamp_iso,/.test(l.trim()));
-  const header = (headerIdx >= 0 ? lines[headerIdx] : lines[0]).split(',');
-  const idxTs = header.indexOf('timestamp_iso');
-  const idxT  = header.indexOf('temp_c');
-  const idxH  = header.indexOf('humidity_pct');
-  const rows  = (headerIdx >= 0 ? lines.slice(headerIdx+1) : lines.slice(1));
+      const raw = [];
+      for (const l of rows) {
+        if (/^timestamp_iso,/.test(l)) continue;
+        const p = l.split(',');
+        if (p.length<3) continue;
+        const ts = new Date(p[idxTs]);
+        if (Number.isNaN(ts.getTime())) continue;
+        const tStr = (p[idxT]||'').replace(',', '.').trim();
+        const hStr = (p[idxH]||'').replace(',', '.').trim();
+        const temp = tStr==='' ? null : Number(tStr);
+        const hum  = hStr==='' ? null : Number(hStr);
+        if ((temp===null || Number.isNaN(temp)) && (hum===null || Number.isNaN(hum))) continue;
+        raw.push({ ts, temp: Number.isNaN(temp)?null:temp, hum: Number.isNaN(hum)?null:hum });
+      }
 
-  const raw = [];
-  for (const l of rows) {
-    if (/^timestamp_iso,/.test(l)) continue;
-    const p = l.split(',');
-    if (p.length < 3) continue;
-    const ts = new Date(p[idxTs]);
-    const tStr = (p[idxT] || '').replace(',', '.').trim();
-    const hStr = (p[idxH] || '').replace(',', '.').trim();
-    const temp = tStr === '' ? null : Number(tStr);
-    const hum  = hStr === '' ? null : Number(hStr);
-    if (isNaN(ts)) continue;
-    if ((temp === null || isNaN(temp)) && (hum === null || isNaN(hum))) continue;
-    raw.push({ ts, temp: isNaN(temp) ? null : temp, hum: isNaN(hum) ? null : hum });
-  }
-
-  // UI prvky
-  const showTemp = document.getElementById('showTemp');
-  const showHum  = document.getElementById('showHum');
-  const fromDate = document.getElementById('fromDate');
-  const toDate   = document.getElementById('toDate');
-  const customRange = document.getElementById('customRange');
-  const applyRange  = document.getElementById('applyRange');
-  const pills = document.querySelectorAll('.pill[data-range]');
-  const toggleCustom = document.getElementById('toggleCustom');
-  const aggSel = document.getElementById('agg');
-  const smooth = document.getElementById('smooth');
-  const themeBtn = document.getElementById('theme');
-
-  const sCount = document.getElementById('s-count');
-  const sT = document.getElementById('s-t');
-  const sH = document.getElementById('s-h');
-  const sGaps = document.getElementById('s-gaps');
-
-  // Téma
-  const savedTheme = localStorage.getItem('theme');
-  if (savedTheme === 'light') document.documentElement.classList.add('light');
-  themeBtn.addEventListener('click', () => {
-    document.documentElement.classList.toggle('light');
-    localStorage.setItem('theme', document.documentElement.classList.contains('light') ? 'light':'dark');
-  });
-
-  const ctx = document.getElementById('chart').getContext('2d');
-  const noDataEl = document.getElementById('nodata');
-  let chart;
-  let currentPreset = 'today';
-  let gapIndices = [];
-
-  function setActive() {
-    pills.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.range === currentPreset)));
-  }
-
-  function rangeFilter(arr) {
-    const now = new Date();
-    let from = new Date(0), to = new Date(8640000000000000);
-    switch (currentPreset) {
-      case 'today': { const d0 = new Date(now); d0.setHours(0,0,0,0); const d1 = new Date(now); d1.setHours(23,59,59,999); from=d0; to=d1; break; }
-      case '7d':  from = new Date(now.getTime() - 7*24*3600*1000); break;
-      case '30d': from = new Date(now.getTime() - 30*24*3600*1000); break;
-      case 'custom':
-        if (fromDate.value) from = new Date(fromDate.value + 'T00:00:00');
-        if (toDate.value)   to   = new Date(toDate.value   + 'T23:59:59');
-        break;
-      case 'all': default: break;
-    }
-    return arr.filter(d => d.ts >= from && d.ts <= to).sort((a,b)=>a.ts-b.ts);
-  }
-
-  // Bezpečný plugin pro vyznačení výpadků – funguje i pro kategorickou osu
-  const gapPlugin = {
-    id: 'gapPlugin',
-    afterDatasetsDraw(chart, args, pluginOptions) {
-      const xScale = chart.scales?.x;
-      if (!xScale || !gapIndices.length) return;
-      const {ctx, chartArea:{top,bottom}} = chart;
-      ctx.save();
-      ctx.setLineDash([5,5]);
-      ctx.lineWidth = 1;
-      ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--err').trim() || '#ff6b8b';
-      gapIndices.forEach(i => {
-        const x = xScale.getPixelForValue(i); // index kategorie
-        if (!Number.isFinite(x)) return;
-        ctx.beginPath();
-        ctx.moveTo(x, top);
-        ctx.lineTo(x, bottom);
-        ctx.stroke();
-      });
-      ctx.restore();
-    }
-  };
-  Chart.register(gapPlugin);
-
-  function computeGapIndices(rows) {
-    const diffs = [];
-    for (let i=1;i<rows.length;i++) {
-      const dt = rows[i].ts - rows[i-1].ts;
-      if (Number.isFinite(dt)) diffs.push(dt);
-    }
-    const med = median(diffs);
-    const threshold = Number.isFinite(med) ? med*2 : 45*60*1000; // fallback 45 min
-    const out = [];
-    for (let i=1;i<rows.length;i++) {
-      const dt = rows[i].ts - rows[i-1].ts;
-      if (dt > threshold) out.push(i); // čára na začátku „po výpadku“ = index i
-    }
-    return out;
-  }
-
-  function updateStats(rows) {
-    sCount.textContent = rows.length;
-    const tVals = rows.map(r=>r.temp).filter(v => v!==null && !Number.isNaN(v));
-    const hVals = rows.map(r=>r.hum ).filter(v => v!==null && !Number.isNaN(v));
-    const tMin = tVals.length ? Math.min(...tVals) : NaN;
-    const tMax = tVals.length ? Math.max(...tVals) : NaN;
-    const tAvg = avg(tVals);
-    const hMin = hVals.length ? Math.min(...hVals) : NaN;
-    const hMax = hVals.length ? Math.max(...hVals) : NaN;
-    const hAvg = avg(hVals);
-    sT.textContent = `${fmt(tMin)} / ${fmt(tMax)} / ${fmt(tAvg)}`;
-    sH.textContent = `${fmt(hMin)} / ${fmt(hMax)} / ${fmt(hAvg)}`;
-    sGaps.textContent = gapIndices.length ? gapIndices.length : '0';
-  }
-
-  function redraw() {
-    let rows = rangeFilter(raw);
-    if (aggSel.value === 'hour') rows = aggregateHourly(rows);
-
-    const labels = rows.map(r => r.ts.toLocaleString('cs-CZ', { hour12:false }));
-    let tData = rows.map(r => r.temp);
-    let hData = rows.map(r => r.hum);
-    if (smooth.checked) { tData = movingAverage(tData, 5); hData = movingAverage(hData, 5); }
-
-    gapIndices = computeGapIndices(rows);
-
-    // pokud nejsou data, nespouštěj Chart (vyhne se pádům)
-    if (!labels.length || (!tData.some(v=>v!==null) && !hData.some(v=>v!==null))) {
-      if (chart) { chart.destroy(); chart = null; }
-      noDataEl.style.display = 'block';
-      updateStats([]);
-      return;
-    } else {
-      noDataEl.style.display = 'none';
-    }
-
-    const tVals = tData.filter(v => v !== null && !Number.isNaN(v));
-    const tMin = tVals.length ? Math.min(...tVals) : undefined;
-    const tMax = tVals.length ? Math.max(...tVals) : undefined;
-    const tRange = (tMin !== undefined && tMax !== undefined)
-      ? { suggestedMin: tMin - Math.abs(tMax - tMin)*0.1,
-          suggestedMax: tMax + Math.abs(tMax - tMin)*0.1 }
-      : {};
-
-    const datasets = [];
-    if (showTemp.checked) datasets.push({ label:'Teplota (°C)', data:tData, yAxisID:'yTemp', tension: smooth.checked ? 0.35 : 0.25, spanGaps:true, pointRadius:0 });
-    if (showHum.checked)  datasets.push({ label:'Vlhkost (%)',  data:hData, yAxisID:'yHum',  tension: smooth.checked ? 0.35 : 0.25, spanGaps:true, pointRadius:0 });
-
-    if (chart) chart.destroy();
-    chart = new Chart(ctx, {
-      type: 'line',
-      data: { labels, datasets },
-      options: {
-        parsing:false, normalized:true,
-        responsive:true, maintainAspectRatio:false, animation:false,
-        interaction:{ mode:'index', intersect:false },
-        scales:{
-          x:{ ticks:{ autoSkip:true, maxRotation:0 } },             // kateg. osa (bez adapteru)
-          yTemp:{ title:{ display:true, text:'°C' }, grid:{ drawBorder:false }, ...tRange },
-          yHum:{ position:'right', title:{ display:true, text:'%' }, grid:{ drawOnChartArea:false }, suggestedMin:0, suggestedMax:100 }
-        },
-        plugins:{ legend:{ position:'top' } }
-      },
-      plugins: ['gapPlugin']
+      initUI(raw);
+    })
+    .catch(err => {
+      console.error('Načtení CSV selhalo:', err);
+      alert('Nepodařilo se načíst data (CSV). Ověř, že je v /docs/data/history.csv.');
     });
 
-    updateStats(rows);
+  // ---------- UI + Graf ----------
+  function initUI(raw){
+    const showTemp = document.getElementById('showTemp');
+    const showHum  = document.getElementById('showHum');
+    const fromDate = document.getElementById('fromDate');
+    const toDate   = document.getElementById('toDate');
+    const customRange = document.getElementById('customRange');
+    const applyRange  = document.getElementById('applyRange');
+    const pills = document.querySelectorAll('.pill[data-range]');
+    const toggleCustom = document.getElementById('toggleCustom');
+    const aggSel = document.getElementById('agg');
+    const smooth = document.getElementById('smooth');
+    const themeBtn = document.getElementById('theme');
+
+    const sCount = document.getElementById('s-count');
+    const sT = document.getElementById('s-t');
+    const sH = document.getElementById('s-h');
+    const sGaps = document.getElementById('s-gaps');
+
+    // téma
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme==='light') document.documentElement.classList.add('light');
+    themeBtn.addEventListener('click', () => {
+      document.documentElement.classList.toggle('light');
+      localStorage.setItem('theme', document.documentElement.classList.contains('light') ? 'light' : 'dark');
+    });
+
+    const ctx = document.getElementById('chart').getContext('2d');
+    const noDataEl = document.getElementById('nodata');
+    let chart;
+    let currentPreset = 'today';
+    let firstRender = true;
+
+    function setActive(){ pills.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.range===currentPreset))); }
+
+    function rangeFilter(arr){
+      const now = new Date();
+      let from = new Date(0), to = new Date(8640000000000000);
+      switch(currentPreset){
+        case 'today': { const d0=new Date(now); d0.setHours(0,0,0,0); const d1=new Date(now); d1.setHours(23,59,59,999); from=d0; to=d1; break; }
+        case '7d':    from = new Date(now.getTime()-7*24*3600*1000); break;
+        case '30d':   from = new Date(now.getTime()-30*24*3600*1000); break;
+        case 'custom':
+          if (fromDate.value) from = new Date(fromDate.value+'T00:00:00');
+          if (toDate.value)   to   = new Date(toDate.value  +'T23:59:59');
+          break;
+        case 'all': default: break;
+      }
+      return arr.filter(d => d.ts>=from && d.ts<=to).sort((a,b)=>a.ts-b.ts);
+    }
+
+    function updateStats(rows){
+      sCount.textContent = rows.length;
+      const tVals = rows.map(r=>r.temp).filter(v => v!==null && !Number.isNaN(v));
+      const hVals = rows.map(r=>r.hum ).filter(v => v!==null && !Number.isNaN(v));
+      const tMin = tVals.length ? Math.min(...tVals) : NaN;
+      const tMax = tVals.length ? Math.max(...tVals) : NaN;
+      const tAvg = avg(tVals);
+      const hMin = hVals.length ? Math.min(...hVals) : NaN;
+      const hMax = hVals.length ? Math.max(...hVals) : NaN;
+      const hAvg = avg(hVals);
+      sT.textContent = `${fmt(tMin)} / ${fmt(tMax)} / ${fmt(tAvg)}`;
+      sH.textContent = `${fmt(hMin)} / ${fmt(hMax)} / ${fmt(hAvg)}`;
+      // „výpadky“ – hrubě: kolik je mezer > 2× medián intervalu
+      const diffs=[]; for(let i=1;i<rows.length;i++){ diffs.push(rows[i].ts-rows[i-1].ts); }
+      const med = diffs.sort((a,b)=>a-b)[Math.floor(diffs.length/2)] || NaN;
+      const thr = Number.isFinite(med) ? med*2 : 45*60*1000;
+      const gaps = diffs.filter(dt => dt>thr).length;
+      sGaps.textContent = gaps || '0';
+    }
+
+    function redraw(){
+      let rows = rangeFilter(raw);
+
+      // při prvním vykreslení: když „Dnes“ vrátí 0, automaticky přepni na „Vše“
+      if (firstRender && rows.length===0){
+        currentPreset = 'all';
+        setActive();
+        rows = rangeFilter(raw);
+      }
+      firstRender = false;
+
+      if (aggSel.value==='hour') rows = aggregateHourly(rows);
+
+      const labels = rows.map(r => r.ts.toLocaleString('cs-CZ',{hour12:false}));
+      let tData = rows.map(r => r.temp);
+      let hData = rows.map(r => r.hum);
+      if (smooth.checked){ tData = movingAverage(tData,5); hData = movingAverage(hData,5); }
+
+      // žádná data → žádný graf
+      if (!labels.length || (!tData.some(v=>v!==null) && !hData.some(v=>v!==null))){
+        if (chart){ chart.destroy(); chart=null; }
+        noDataEl.style.display='block';
+        updateStats([]);
+        return;
+      } else {
+        noDataEl.style.display='none';
+      }
+
+      const tVals = tData.filter(v => v!==null && !Number.isNaN(v));
+      const tMin = tVals.length ? Math.min(...tVals) : undefined;
+      const tMax = tVals.length ? Math.max(...tVals) : undefined;
+      const tRange = (tMin!==undefined && tMax!==undefined)
+        ? { suggestedMin: tMin - Math.abs(tMax - tMin)*0.1,
+            suggestedMax: tMax + Math.abs(tMax - tMin)*0.1 }
+        : {};
+
+      const datasets = [];
+      if (showTemp.checked) datasets.push({ label:'Teplota (°C)', data:tData, yAxisID:'yTemp',
+                                            tension: smooth.checked?0.35:0.25, spanGaps:true, pointRadius:0 });
+      if (showHum.checked)  datasets.push({ label:'Vlhkost (%)', data:hData, yAxisID:'yHum',
+                                            tension: smooth.checked?0.35:0.25, spanGaps:true, pointRadius:0 });
+
+      if (chart) chart.destroy();
+      chart = new Chart(ctx, {
+        type:'line',
+        data:{ labels, datasets },
+        options:{
+          parsing:false, normalized:true,
+          responsive:true, maintainAspectRatio:false, animation:false,
+          interaction:{ mode:'index', intersect:false },
+          scales:{
+            x:{ ticks:{ autoSkip:true, maxRotation:0 } },
+            yTemp:{ title:{display:true, text:'°C'}, grid:{ drawBorder:false }, ...tRange },
+            yHum:{ position:'right', title:{display:true, text:'%'}, grid:{ drawOnChartArea:false }, suggestedMin:0, suggestedMax:100 }
+          },
+          plugins:{ legend:{ position:'top' } }
+        }
+      });
+
+      updateStats(rows);
+    }
+
+    // ovládání
+    pills.forEach(b => b.addEventListener('click', () => { currentPreset=b.dataset.range; customRange.style.display='none'; setActive(); redraw(); }));
+    toggleCustom.addEventListener('click', () => { customRange.style.display = (customRange.style.display==='none'||!customRange.style.display)?'flex':'none'; });
+    applyRange.addEventListener('click', () => { currentPreset='custom'; setActive(); redraw(); });
+
+    showTemp.addEventListener('change', redraw);
+    showHum .addEventListener('change', redraw);
+    aggSel  .addEventListener('change', redraw);
+    smooth  .addEventListener('change', redraw);
+
+    document.getElementById('dlPng').addEventListener('click', () => {
+      if (!chart) return;
+      const a=document.createElement('a');
+      a.href=chart.toBase64Image();
+      a.download=`meteo_${new Date().toISOString().slice(0,19)}.png`;
+      a.click();
+    });
+
+    setActive();
+    redraw();
   }
-
-  // Ovládání
-  document.getElementById('theme').addEventListener('click', () => {});
-  pills.forEach(b => b.addEventListener('click', () => { currentPreset = b.dataset.range; customRange.style.display='none'; setActive(); redraw(); }));
-  toggleCustom.addEventListener('click', () => { customRange.style.display = (customRange.style.display === 'none' || !customRange.style.display) ? 'flex' : 'none'; });
-  applyRange.addEventListener('click', () => { currentPreset = 'custom'; setActive(); redraw(); });
-  showTemp.addEventListener('change', redraw);
-  showHum .addEventListener('change', redraw);
-  aggSel  .addEventListener('change', redraw);
-  smooth  .addEventListener('change', redraw);
-
-  document.getElementById('dlPng').addEventListener('click', () => {
-    if (!chart) return;
-    const a = document.createElement('a');
-    a.href = chart.toBase64Image();
-    a.download = `meteo_${new Date().toISOString().slice(0,19)}.png`;
-    a.click();
-  });
-
-  // Start
-  const saved = localStorage.getItem('theme');
-  if (saved === 'light') document.documentElement.classList.add('light');
-  setActive();
-  redraw();
 })();
 </script>
 </body>
