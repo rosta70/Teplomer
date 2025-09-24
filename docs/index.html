@@ -5,17 +5,48 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Meteo archiv – teplota & vlhkost</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
-<style>
-  :root { --bg:#0b1220; --card:#0e1626; --fg:#e7eef7; --muted:#a5b3c8; }
-  body { margin:24px; font-family: ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial; background:var(--bg); color:var(--fg); }
-  .wrap { max-width:1100px; margin:0 auto; }
-  .controls { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin:12px 0 18px; }
-  .controls > * { background:var(--card); border:1px solid #1b2741; padding:8px 10px; border-radius:12px; }
-  canvas { background:var(--card); border-radius:16px; padding:12px;
-           /* fix výšky grafu */
-           width:100%; height:420px !important; }
-</style>
+  <style>
+    :root {
+      --bg:#0b1220; --card:#0e1626; --fg:#e7eef7; --muted:#a5b3c8;
+      --accent:#78c6ff;
+      --chip-bg:#0f1c36; --chip-border:#2f5fa8; --chip-hover:#173b6a; --chip-active:#1f4c8f;
+    }
+    * { box-sizing: border-box; }
+    body { margin:24px; font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial; background:var(--bg); color:var(--fg); }
+    .wrap { max-width:1100px; margin:0 auto; }
+    h1 { margin:0 0 6px; font-size:1.8rem; }
+    .sub { color:var(--muted); margin-bottom:18px; }
+    .controls { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin:12px 0 18px; }
+    .controls > * { background:var(--chip-bg); border:1px solid var(--chip-border); padding:8px 10px; border-radius:12px; }
+    label { display:flex; align-items:center; gap:8px; }
+    select, input[type="date"] { color:var(--fg); background:transparent; border:none; outline:none; }
+    input[type="checkbox"] { accent-color: var(--accent); }
+    button { cursor:pointer; color:var(--fg); background:var(--chip-bg); border:1px solid var(--chip-border); border-radius:12px; }
+    button:hover { background:var(--chip-hover); border-color:#3a79d9; }
+    button:active { background:var(--chip-active); border-color:#4894ff; }
 
+    /* PILULKY */
+    .pill-group { display:flex; gap:8px; }
+    .pill {
+      background: var(--chip-bg);
+      border: 1px solid var(--chip-border);
+      color: var(--fg);
+      padding: 8px 14px;
+      border-radius: 9999px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .pill:hover { background: var(--chip-hover); border-color:#3a79d9; }
+    .pill[aria-pressed="true"] { background: var(--chip-active); border-color:#4894ff; }
+
+    canvas {
+      background: var(--card);
+      border-radius:16px;
+      padding:12px;
+      width:100%;
+      height:420px !important; /* fix výšky grafu */
+    }
+  </style>
 </head>
 <body>
   <div class="wrap">
@@ -24,33 +55,39 @@
 
     <div class="controls">
       <label><input type="checkbox" id="showTemp" checked> Teplota (°C)</label>
-      <label><input type="checkbox" id="showHum" checked> Vlhkost (%)</label>
+      <label><input type="checkbox" id="showHum"  checked> Vlhkost (%)</label>
 
-      <select id="preset">
-        <option value="today">Dnes</option>
-        <option value="7d">7 dní</option>
-        <option value="30d">30 dní</option>
-        <option value="all">Vše</option>
-        <option value="custom">Vlastní rozsah…</option>
-      </select>
+      <div class="pill-group" id="rangePills">
+        <button class="pill" data-range="today" aria-pressed="true">Dnes</button>
+        <button class="pill" data-range="7d">7 dní</button>
+        <button class="pill" data-range="30d">30 dní</button>
+        <button class="pill" data-range="all">Vše</button>
+        <button class="pill" id="toggleCustom" type="button">Vlastní…</button>
+      </div>
 
       <div class="row" id="customRange" style="display:none">
         <label>Od: <input type="date" id="fromDate"></label>
         <label>Do: <input type="date" id="toDate"></label>
-        <button id="applyRange">Použít</button>
+        <button id="applyRange" type="button">Použít</button>
       </div>
 
-      <button id="dlPng">Stáhnout PNG</button>
-      <a id="dlCsv" href="../data/history.csv" download="history.csv"><button>Stáhnout CSV</button></a>
+      <button id="dlPng" type="button">Stáhnout PNG</button>
+      <a id="dlCsv" href="#" download="history.csv"><button type="button">Stáhnout CSV</button></a>
     </div>
 
-    <canvas id="chart" height="120"></canvas>
+    <canvas id="chart"></canvas>
   </div>
+
 <script>
 (async () => {
-  // 1) Načtení CSV z Pages (název repozitáře uprav, máš "Teplomer")
-  const CSV_URL = '/Teplomer/data/history.csv';
+  // Automaticky odvodíme base path pro GitHub Pages (/Teplomer/… nebo root u custom domény)
+  const base = location.pathname.split('/').filter(Boolean)[0] || '';
+  const CSV_URL = `/${base ? base + '/' : ''}data/history.csv`;
+  // nastavíme odkaz na CSV
+  const csvLink = document.getElementById('dlCsv');
+  if (csvLink) csvLink.href = CSV_URL;
 
+  // === Načtení CSV ===
   let text = '';
   try {
     const resp = await fetch(CSV_URL, { cache: 'no-store' });
@@ -58,32 +95,22 @@
     text = await resp.text();
   } catch (e) {
     console.error('Nepodařilo se načíst CSV:', e);
-    alert('Nepodařilo se načíst data (CSV). Zkontroluj cestu a GitHub Pages.');
+    alert('Nepodařilo se načíst data (CSV). Ověř, že je soubor v /docs/data/history.csv a Pages jsou zapnuté.');
     return;
   }
 
-  // 2) Robustní parser (CRLF, prázdné řádky, duplicitní hlavičky)
-  const lines = text
-    .replace(/\uFEFF/g, '')         // BOM
-    .split(/\r?\n/)
-    .filter(l => l.trim().length > 0);
-
-  if (lines.length < 2) {
-    console.warn('CSV má jen hlavičku nebo je prázdné.');
-  }
-
-  // Najdi první hlavičku
+  // Robustní parser CSV (BOM, CRLF, prázdné řádky, vícenásobné hlavičky)
+  const lines = text.replace(/\uFEFF/g,'').split(/\r?\n/).filter(l => l.trim().length > 0);
   const headerIdx = lines.findIndex(l => /^timestamp_iso,/.test(l.trim()));
   const header = (headerIdx >= 0 ? lines[headerIdx] : lines[0]).split(',');
   const idxTs = header.indexOf('timestamp_iso');
   const idxT  = header.indexOf('temp_c');
   const idxH  = header.indexOf('humidity_pct');
-
-  const dataRows = (headerIdx >= 0 ? lines.slice(headerIdx + 1) : lines.slice(1));
+  const rows  = (headerIdx >= 0 ? lines.slice(headerIdx+1) : lines.slice(1));
 
   const raw = [];
-  for (const l of dataRows) {
-    if (/^timestamp_iso,/.test(l)) continue;     // případné další hlavičky z opakovaných commitů
+  for (const l of rows) {
+    if (/^timestamp_iso,/.test(l)) continue;
     const p = l.split(',');
     if (p.length < 3) continue;
     const ts = new Date(p[idxTs]);
@@ -91,34 +118,43 @@
     const hStr = (p[idxH] || '').replace(',', '.').trim();
     const temp = tStr === '' ? null : Number(tStr);
     const hum  = hStr === '' ? null : Number(hStr);
-    if (isNaN(ts)) continue;                     // špatný čas
-    if ((temp === null || isNaN(temp)) && (hum === null || isNaN(hum))) continue; // prázdný řádek
+    if (isNaN(ts)) continue;
+    if ((temp === null || isNaN(temp)) && (hum === null || isNaN(hum))) continue;
     raw.push({ ts, temp: isNaN(temp) ? null : temp, hum: isNaN(hum) ? null : hum });
   }
 
-  // --- UI prvky
+  // === UI prvky ===
   const showTemp = document.getElementById('showTemp');
   const showHum  = document.getElementById('showHum');
-  const preset   = document.getElementById('preset') || { value: 'today' };
   const fromDate = document.getElementById('fromDate');
   const toDate   = document.getElementById('toDate');
   const customRange = document.getElementById('customRange');
-  const applyRange = document.getElementById('applyRange');
-  const dlPng   = document.getElementById('dlPng');
+  const applyRange  = document.getElementById('applyRange');
+  const pills = document.querySelectorAll('.pill[data-range]');
+  const toggleCustom = document.getElementById('toggleCustom');
 
   const ctx = document.getElementById('chart').getContext('2d');
   let chart;
+  let currentPreset = 'today';
+
+  function setActive() {
+    pills.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.range === currentPreset)));
+  }
 
   function rangeFilter(arr) {
     const now = new Date();
     let from = new Date(0), to = new Date(8640000000000000);
-    switch (preset.value) {
-      case 'today': { const d0 = new Date(now); d0.setHours(0,0,0,0); const d1 = new Date(now); d1.setHours(23,59,59,999); from=d0; to=d1; break; }
-      case '7d':    from = new Date(now.getTime() - 7*24*3600*1000); break;
-      case '30d':   from = new Date(now.getTime() - 30*24*3600*1000); break;
+    switch (currentPreset) {
+      case 'today': {
+        const d0 = new Date(now); d0.setHours(0,0,0,0);
+        const d1 = new Date(now); d1.setHours(23,59,59,999);
+        from=d0; to=d1; break;
+      }
+      case '7d':  from = new Date(now.getTime() - 7*24*3600*1000); break;
+      case '30d': from = new Date(now.getTime() - 30*24*3600*1000); break;
       case 'custom':
-        if (fromDate?.value) from = new Date(fromDate.value + 'T00:00:00');
-        if (toDate?.value)   to   = new Date(toDate.value   + 'T23:59:59');
+        if (fromDate.value) from = new Date(fromDate.value + 'T00:00:00');
+        if (toDate.value)   to   = new Date(toDate.value   + 'T23:59:59');
         break;
       case 'all': default: break;
     }
@@ -126,65 +162,78 @@
   }
 
   function redraw() {
-    const rows = rangeFilter(raw);
-    const labels = rows.map(r => r.ts.toLocaleString('cs-CZ', { hour12:false }));
+    const d = rangeFilter(raw);
+    const labels = d.map(r => r.ts.toLocaleString('cs-CZ', { hour12:false }));
 
-    const tData = rows.map(r => r.temp);
-    const hData = rows.map(r => r.hum);
+    const tData = d.map(r => r.temp);
+    const hData = d.map(r => r.hum);
 
-    // Dynamické limity teploty (±10 % buffer)
     const tVals = tData.filter(v => v !== null && !isNaN(v));
     const tMin = tVals.length ? Math.min(...tVals) : undefined;
     const tMax = tVals.length ? Math.max(...tVals) : undefined;
-    const tRange = (tMin !== undefined && tMax !== undefined) ? { suggestedMin: tMin - Math.abs(tMax - tMin)*0.1,
-                                                                  suggestedMax: tMax + Math.abs(tMax - tMin)*0.1 } : {};
+    const tRange = (tMin !== undefined && tMax !== undefined)
+      ? { suggestedMin: tMin - Math.abs(tMax - tMin)*0.1,
+          suggestedMax: tMax + Math.abs(tMax - tMin)*0.1 }
+      : {};
 
     const datasets = [];
-    if (showTemp?.checked) datasets.push({ label:'Teplota (°C)', data:tData, yAxisID:'yTemp', tension:0.25, spanGaps:true, pointRadius:0 });
-    if (showHum?.checked)  datasets.push({ label:'Vlhkost (%)',  data:hData, yAxisID:'yHum',  tension:0.25, spanGaps:true, pointRadius:0 });
+    if (showTemp.checked) datasets.push({ label:'Teplota (°C)', data:tData, yAxisID:'yTemp', tension:0.25, spanGaps:true, pointRadius:0 });
+    if (showHum.checked)  datasets.push({ label:'Vlhkost (%)',  data:hData, yAxisID:'yHum',  tension:0.25, spanGaps:true, pointRadius:0 });
 
     if (chart) chart.destroy();
     chart = new Chart(ctx, {
       type: 'line',
       data: { labels, datasets },
       options: {
-        responsive: true,
-        maintainAspectRatio: false, // respektuje pevnou výšku z CSS
-        animation: false,
-        interaction: { mode: 'index', intersect: false },
-        scales: {
-          x: { ticks: { autoSkip: true, maxRotation: 0 } },
-          yTemp: { title:{ display:true, text:'°C' }, grid:{ drawBorder:false }, ...tRange },
-          yHum:  { position:'right', title:{ display:true, text:'%' }, grid:{ drawOnChartArea:false },
-                   suggestedMin:0, suggestedMax:100 }
+        responsive:true,
+        maintainAspectRatio:false,  // respektuje pevnou výšku z CSS
+        animation:false,
+        interaction:{ mode:'index', intersect:false },
+        scales:{
+          x:{ ticks:{ autoSkip:true, maxRotation:0 } },
+          yTemp:{ title:{ display:true, text:'°C' }, grid:{ drawBorder:false }, ...tRange },
+          yHum:{ position:'right', title:{ display:true, text:'%' }, grid:{ drawOnChartArea:false }, suggestedMin:0, suggestedMax:100 }
         },
-        plugins: { legend: { position:'top' } }
+        plugins:{ legend:{ position:'top' } }
       }
     });
   }
 
-  // Handlery
-  preset?.addEventListener?.('change', () => {
-    const cr = document.getElementById('customRange');
-    if (cr) cr.style.display = preset.value === 'custom' ? 'flex' : 'none';
-    if (preset.value !== 'custom') redraw();
+  // Pilulky
+  pills.forEach(b => {
+    b.addEventListener('click', () => {
+      currentPreset = b.dataset.range;
+      customRange.style.display = 'none';
+      setActive();
+      redraw();
+    });
   });
-  applyRange?.addEventListener?.('click', redraw);
-  showTemp?.addEventListener?.('change', redraw);
-  showHum?.addEventListener?.('change', redraw);
-  dlPng?.addEventListener?.('click', () => {
+
+  toggleCustom.addEventListener('click', () => {
+    customRange.style.display = (customRange.style.display === 'none' || !customRange.style.display) ? 'flex' : 'none';
+  });
+
+  applyRange.addEventListener('click', () => {
+    currentPreset = 'custom';
+    setActive();
+    redraw();
+  });
+
+  showTemp.addEventListener('change', redraw);
+  showHum .addEventListener('change', redraw);
+
+  // Uložení grafu
+  document.getElementById('dlPng').addEventListener('click', () => {
     const a = document.createElement('a');
     a.href = chart.toBase64Image();
     a.download = `meteo_${new Date().toISOString().slice(0,19)}.png`;
     a.click();
   });
 
-  // Výchozí pohled
-  if (preset) preset.value = 'today';
+  // Start
+  setActive();
   redraw();
 })();
 </script>
-
 </body>
 </html>
-
