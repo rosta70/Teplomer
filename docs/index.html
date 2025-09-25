@@ -22,8 +22,20 @@
       border-radius: 1rem;
       box-shadow: 0 2px 6px rgba(0,0,0,0.1);
     }
+    #chartContainer {
+      height: 60vh; /* přizpůsobí se mobilu */
+    }
     #chart {
-      max-height: 500px;
+      width: 100% !important;
+      height: 100% !important;
+    }
+    .stat-value {
+      font-size: 1.4rem;
+      font-weight: bold;
+    }
+    .stat-detail {
+      font-size: 0.9rem;
+      opacity: 0.8;
     }
   </style>
 </head>
@@ -72,23 +84,25 @@
   <div id="sensorCheckboxes" class="mb-3"></div>
 
   <!-- Statistika -->
-  <div class="row mb-3">
+  <div class="row mb-3 g-3">
     <div class="col-md-6">
       <div class="card p-3 text-center">
         <strong>Min. teplota</strong>
-        <div id="minTemp" class="fs-4 fw-bold">–</div>
+        <div id="minTemp" class="stat-value">–</div>
+        <div id="minDetail" class="stat-detail"></div>
       </div>
     </div>
     <div class="col-md-6">
       <div class="card p-3 text-center">
         <strong>Max. teplota</strong>
-        <div id="maxTemp" class="fs-4 fw-bold">–</div>
+        <div id="maxTemp" class="stat-value">–</div>
+        <div id="maxDetail" class="stat-detail"></div>
       </div>
     </div>
   </div>
 
   <!-- Graf -->
-  <div class="card p-3">
+  <div id="chartContainer" class="card p-3">
     <canvas id="chart"></canvas>
   </div>
 </div>
@@ -98,9 +112,14 @@ let chart;
 let allData = [];
 let sensors = {};
 
+const SENSOR_NAMES = {
+  "4065": "UNI",
+  "2764": "Venek"
+};
+
 async function loadFileList() {
   try {
-    const res = await fetch("data/index.json"); // správná cesta z docs/
+    const res = await fetch("data/index.json");
     const files = await res.json();
     const select = document.getElementById("fileSelect");
     select.innerHTML = "";
@@ -122,7 +141,7 @@ async function loadData(file) {
   try {
     const res = await fetch("data/" + file);
     const text = await res.text();
-    const rows = text.trim().split("\n").slice(1); // přeskočit hlavičku
+    const rows = text.trim().split("\n").slice(1);
     allData = rows.map(line => {
       const [timestamp, source, temp, hum] = line.split(",");
       return {
@@ -159,7 +178,7 @@ function renderSensorCheckboxes() {
 
     const lbl = document.createElement("label");
     lbl.htmlFor = id;
-    lbl.textContent = s;
+    lbl.textContent = SENSOR_NAMES[s] || s;
     lbl.classList.add("form-check-label");
 
     wrapper.appendChild(cb);
@@ -193,9 +212,10 @@ function updateChart() {
   const selectedSensors = Object.keys(sensors).filter(s => document.getElementById("sensor_"+s).checked);
 
   selectedSensors.forEach(s => {
+    const name = SENSOR_NAMES[s] || s;
     if (showTemp) {
       datasets.push({
-        label: s + " (°C)",
+        label: name + " (°C)",
         data: data.filter(r => r.source===s).map(r => ({x:r.time,y:r.temp})),
         borderColor: "red",
         backgroundColor: "rgba(255,0,0,0.2)",
@@ -204,7 +224,7 @@ function updateChart() {
     }
     if (showHum) {
       datasets.push({
-        label: s + " (%)",
+        label: name + " (%)",
         data: data.filter(r => r.source===s).map(r => ({x:r.time,y:r.hum})),
         borderColor: "blue",
         backgroundColor: "rgba(0,0,255,0.2)",
@@ -219,6 +239,7 @@ function updateChart() {
     data: { datasets },
     options: {
       responsive: true,
+      maintainAspectRatio: false,
       interaction: { mode: "nearest", axis: "x", intersect: false },
       stacked: false,
       scales: {
@@ -230,9 +251,20 @@ function updateChart() {
   });
 
   // statistika
-  const temps = data.map(r=>r.temp).filter(v=>!isNaN(v));
-  document.getElementById("minTemp").textContent = temps.length? Math.min(...temps).toFixed(1)+" °C":"–";
-  document.getElementById("maxTemp").textContent = temps.length? Math.max(...temps).toFixed(1)+" °C":"–";
+  const temps = data.map(r=>({val:r.temp,src:r.source,time:r.time})).filter(r=>!isNaN(r.val));
+  if (temps.length) {
+    const min = temps.reduce((a,b)=>a.val<b.val?a:b);
+    const max = temps.reduce((a,b)=>a.val>b.val?a:b);
+    document.getElementById("minTemp").textContent = min.val.toFixed(1)+" °C";
+    document.getElementById("maxTemp").textContent = max.val.toFixed(1)+" °C";
+    document.getElementById("minDetail").textContent = `${SENSOR_NAMES[min.src]||min.src}, ${min.time.toLocaleString()}`;
+    document.getElementById("maxDetail").textContent = `${SENSOR_NAMES[max.src]||max.src}, ${max.time.toLocaleString()}`;
+  } else {
+    document.getElementById("minTemp").textContent = "–";
+    document.getElementById("maxTemp").textContent = "–";
+    document.getElementById("minDetail").textContent = "";
+    document.getElementById("maxDetail").textContent = "";
+  }
 }
 
 document.getElementById("rangeSelect").onchange = updateChart;
