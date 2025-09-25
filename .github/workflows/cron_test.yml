@@ -1,0 +1,13 @@
+name: Cron test
+
+on:
+  schedule:
+    - cron: "* * * * *"   # každou minutu
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Print date
+        run: date
