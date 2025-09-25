@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <title>Cron log</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f9f9f9; padding: 20px; }
+    h1 { margin-bottom: 20px; }
+    pre {
+      background: #fff;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+      max-height: 400px;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>Cron test log</h1>
+  <p>Záznamy z <code>cron_log.txt</code> (každý běh cronu přidá řádek):</p>
+  <pre id="log">Načítám...</pre>
+
+  <script>
+    async function loadLog() {
+      try {
+        const resp = await fetch("data/cron_log.txt?nocache=" + Date.now());
+        if (!resp.ok) throw new Error("HTTP " + resp.status);
+        const text = await resp.text();
+        document.getElementById("log").textContent = text;
+      } catch (e) {
+        document.getElementById("log").textContent = "Nepodařilo se načíst log: " + e;
+      }
+    }
+    loadLog();
+  </script>
+</body>
+</html>
