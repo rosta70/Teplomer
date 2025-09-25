@@ -294,9 +294,16 @@
         responsive:true, maintainAspectRatio:false, animation:false,
         interaction:{ mode:'index', intersect:false },
         scales:{
-          x:{ ticks:{ autoSkip:true, maxRotation:0 } },
-          yT:{ title:{display:true, text:'°C'}, grid:{drawBorder:false}, ...yTopt },
-          yH:{ position:'right', title:{display:true, text:'%'}, grid:{drawOnChartArea:false}, suggestedMin:0, suggestedMax:100 }
+  x:{
+    ticks:{
+      autoSkip:true,
+      maxTicksLimit:6,   // max 6 popisků
+      maxRotation:45,    // popisky šikmo
+      minRotation:45
+    }
+  },
+  yT:{ ... },
+  yH:{ ... }
         },
         plugins:{ legend:{ position:'top' } }
       }
