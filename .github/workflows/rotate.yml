@@ -3,10 +3,10 @@ name: Rotate history
 on:
   schedule:
     - cron: "5 0 1 * *"   # 1. den v měsíci v 00:05 UTC
-  workflow_dispatch:       # umožní spustit ručně z GitHubu
+  workflow_dispatch:       # možnost spustit ručně
 
 permissions:
-  contents: write
+  contents: write   # <-- důležité pro commit a push
 
 jobs:
   build:
