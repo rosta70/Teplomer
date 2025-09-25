@@ -1,38 +1,44 @@
 import requests
 import csv
 from datetime import datetime
-import pytz
-from pathlib import Path
 
-# Nastavení
-DATA_FILE = Path("docs/data/history.csv")
-tz = pytz.timezone("Europe/Prague")
-
+# URL a mapování senzorů
 SENSORS = {
-    "UNI": "https://brrr.cz/brrr.php?runpagephp=afterlogin&uloha=nacti_data_jen_posledni&ssid=Teplomer_UNI_2500&kod=49b5cf6b0607e62aa6d4cb10912cf107",
-    "Venek": "https://brrr.cz/brrr.php?runpagephp=afterlogin&uloha=nacti_data_jen_posledni&ssid=Teplomer_UNI_320&kod=fb2255b580a412aed10172ab7d973c7f"
+    "4065": "https://brrr.cz/brrr.php?runpagephp=afterlogin&uloha=nacti_data_jen_posledni&ssid=Teplomer_UNI_2500&kod=49b5cf6b0607e62aa6d4cb10912cf107",
+    "2764": "https://brrr.cz/brrr.php?runpagephp=afterlogin&uloha=nacti_data_jen_posledni&ssid=Teplomer_UNI_320&kod=fb2255b580a412aed10172ab7d973c7f"
 }
 
-def ensure_header():
-    if not DATA_FILE.exists():
-        with open(DATA_FILE, "w", newline="") as f:
-            writer = csv.writer(f)
-            writer.writerow(["timestamp", "source", "temp_c", "humidity_pct"])
+CSV_FILE = "docs/data/history.csv"
 
-def append_data():
-    ensure_header()
-    with open(DATA_FILE, "a", newline="") as f:
-        writer = csv.writer(f)
-        for name, url in SENSORS.items():
+def fetch_and_append():
+    rows = []
+    for sensor_id, url in SENSORS.items():
+        try:
             r = requests.get(url, timeout=10)
             r.raise_for_status()
-            j = r.json()
+            data = r.json()
 
-            ts = datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
-            temp = j.get("posledni_zaznam_teplota")
-            hum = j.get("posledni_zaznam_vlhkost")
+            # Vytáhneme hodnoty
+            ts = data.get("cas")
+            temp = data.get("teplota")
+            hum = data.get("vlhkost")
 
-            writer.writerow([ts, name, temp, hum])
+            if ts and temp is not None:
+                # použijeme číselné ID jako source
+                rows.append([ts, sensor_id, temp, hum if hum is not None else ""])
+        except Exception as e:
+            print(f"Chyba u senzoru {sensor_id}: {e}")
+
+    if not rows:
+        print("Žádná nová data")
+        return
+
+    # Uložíme do CSV
+    with open(CSV_FILE, "a", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        for row in rows:
+            writer.writerow(row)
+    print(f"Zapsáno {len(rows)} řádků do {CSV_FILE}")
 
 if __name__ == "__main__":
-    append_data()
+    fetch_and_append()
