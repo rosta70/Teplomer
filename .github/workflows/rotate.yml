@@ -3,10 +3,10 @@ name: Rotate history
 on:
   schedule:
     - cron: "5 0 1 * *"   # 1. den v měsíci v 00:05 UTC
-  workflow_dispatch:       # možnost spustit ručně
+  workflow_dispatch:       # umožní spustit ručně z GitHubu
 
 permissions:
-  contents: write   # <-- důležité pro commit a push
+  contents: write
 
 jobs:
   build:
@@ -14,6 +14,8 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -21,12 +23,14 @@ jobs:
           python-version: "3.x"
 
       - name: Run rotation script
-        run: python3 docs/data/rotate_history.py
+        run: python3 rotate_history.py
 
       - name: Commit changes
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "actions@github.com"
-          git add docs/data/history*.csv docs/data/index.json
+          git fetch origin main
+          git rebase origin/main
+          git add data/history*.csv data/index.json
           git commit -m "Monthly rotate history.csv" || echo "No changes to commit"
-          git push
+          git push origin HEAD:main
