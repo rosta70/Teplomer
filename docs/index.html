@@ -96,7 +96,13 @@
   <script>
     let chart;
     let allData = [];
-    let sensorMap = { "2764": "Venek", "4065": "UNI", "Venek": "Venek", "UNI": "UNI" };
+    
+    function normalizeSource(src) {
+  if (src === "2764" || src === "Venek") return "Venek";
+  if (src === "4065" || src === "UNI") return "UNI";
+  return src; // fallback – kdyby přišlo něco jiného
+   }
+
 
     async function loadFileList() {
       const res = await fetch("data/index.json");
@@ -124,12 +130,13 @@
         const tIdx = header.indexOf("temp_c");
         const hIdx = header.indexOf("humidity_pct");
 
-        allData = rows.map(r => ({
-          t: new Date(r[tsIdx]),
-          s: sensorMap[r[srcIdx]] || r[srcIdx],
-          temp: parseFloat(r[tIdx]),
-          hum: parseFloat(r[hIdx])
-        }));
+allData = rows.map(r => ({
+  t: new Date(r[tsIdx]),
+  s: normalizeSource(r[srcIdx]),
+  temp: parseFloat(r[tIdx]),
+  hum: parseFloat(r[hIdx])
+}));
+
 
         updateSensors();
         updateChart();
