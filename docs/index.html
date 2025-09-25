@@ -5,7 +5,7 @@
   <title>Meteo archiv</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <!-- Bootstrap 5 -->
+  <!-- Bootstrap -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
 
@@ -22,7 +22,6 @@
     .stat-value { font-size: 1.4rem; font-weight: bold; }
     .stat-detail { font-size: 0.9rem; opacity: 0.8; }
 
-    /* Mobilní rozvržení */
     @media (max-width: 768px) {
       .controls-row > * { flex: 100%; margin-bottom: .5rem; }
       #chartContainer { height: 55vh; }
@@ -201,7 +200,17 @@ function updateChart() {
     options: {
       responsive: true, maintainAspectRatio: false,
       interaction: { mode: "nearest", axis: "x", intersect: false },
-      plugins: { zoom: { zoom:{wheel:{enabled:true}, pinch:{enabled:true}, mode:"x"}, pan:{enabled:true, mode:"x"} } },
+      plugins: {
+        tooltip: {
+          mode: "nearest",
+          intersect: false,
+          callbacks: {
+            label: ctx => `${ctx.dataset.label}: ${ctx.formattedValue}`,
+            title: items => new Date(items[0].parsed.x).toLocaleString()
+          }
+        },
+        zoom: { zoom:{wheel:{enabled:true}, pinch:{enabled:true}, mode:"x"}, pan:{enabled:true, mode:"x"} }
+      },
       scales: {
         x: { type:"time", time:{unit:"hour"} },
         y: { type:"linear", position:"left", title:{display:true,text:"°C"} },
