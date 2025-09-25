@@ -4,7 +4,10 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Meteo archiv – jednoduchý graf</title>
+
+  <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.js"></script>
+
   <style>
     :root {
       --bg:#0b1220; --panel:#0e1626; --fg:#e7eef7; --muted:#a5b3c8;
@@ -19,6 +22,7 @@
     .wrap{max-width:1100px;margin:0 auto}
     h1{margin:0 0 8px}
     .sub{color:var(--muted);margin-bottom:16px}
+
     .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
     .chip{background:var(--chip);border:1px solid var(--chip-b);border-radius:10px;padding:8px 10px}
     .srcs label{margin-right:10px}
@@ -26,6 +30,7 @@
     canvas{width:100%;height:420px !important}
     .muted{color:var(--muted)}
     button{cursor:pointer;border:1px solid var(--chip-b);background:var(--chip);color:var(--fg);border-radius:10px;padding:8px 10px}
+
     .stats {display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}
     .stat  {background:var(--chip);border:1px solid var(--chip-b);border-radius:10px;padding:10px}
     .stat .label{font-size:.9rem;color:var(--muted);margin-bottom:4px}
@@ -35,7 +40,7 @@
 <body>
   <div class="wrap">
     <h1>Meteo archiv</h1>
-    <div class="sub">Zdroj: <code>tmep.cz</code>  Rostav</div>
+    <div class="sub">Zdroj: <code>brrr.cz</code> · CSV z GitHub Pages · levá osa °C, pravá osa %</div>
 
     <div class="controls">
       <label class="chip"><input type="checkbox" id="showTemp" checked> Teplota (°C)</label>
@@ -58,12 +63,7 @@
         <button id="applyRange" type="button">Použít</button>
       </div>
 
-      <div class="chip">
-        Soubor:
-        <select id="fileSelect"></select>
-      </div>
-
-      <div class="chip srcs" id="srcToggles" title="Zap/vyp stanice"></div>
+      <div class="chip srcs" id="srcToggles"></div>
 
       <button id="theme">🌓 Režim</button>
       <a id="dlCsv" class="muted" href="#" download="history.csv">Stáhnout CSV</a>
@@ -88,84 +88,44 @@
 
 <script>
 (() => {
-  const csvLink   = document.getElementById('dlCsv');
-  const fileSelect= document.getElementById('fileSelect');
+  const repo = location.pathname.split('/').filter(Boolean)[0] || '';
+  const CSV_URL = `/${repo ? repo + '/' : ''}docs/data/history.csv`;
+  const csvLink = document.getElementById('dlCsv');
 
-  // ✅ vlastní popisky stanic
-  const SOURCE_LABELS = {
-    "2764": "Venek",
-    "4065": "UNI"
-  };
-
-  // ---------- načtení seznamu CSV z index.json ----------
-  async function loadFileList() {
-    try {
-      const r = await fetch("data/index.json", { cache: "no-store" });
-      if (!r.ok) throw new Error("index.json nenalezen");
-      const list = await r.json();
-
-      fileSelect.innerHTML = "";
-      list.forEach((file, i) => {
-        const opt = document.createElement("option");
-        opt.value = "data/" + file;
-        opt.textContent = (file === "history.csv")
-          ? "Aktuální měsíc"
-          : file.replace("history_", "").replace(".csv", "");
-        if (i === 0) opt.selected = true;
-        fileSelect.appendChild(opt);
-      });
-
-      reload(fileSelect.value);
-    } catch (err) {
-      console.error(err);
-      alert("Nepodařilo se načíst index.json se seznamem souborů.");
-    }
+  async function loadCsv() {
+    const r = await fetch(CSV_URL, {cache:'no-store'});
+    if(r.ok){ csvLink.href=CSV_URL; return await r.text(); }
+    throw new Error('CSV nenalezeno');
   }
 
-  async function loadCsv(fileName) {
-    const r = await fetch(fileName, { cache: 'no-store' });
-    if (!r.ok) throw new Error('CSV soubor nenalezen: ' + fileName);
-    csvLink.href = fileName;
-    return await r.text();
-  }
-
-  // ---------- pomocné funkce ----------
   const fmt = (n,d=2)=> (n===null||n===undefined||Number.isNaN(n))?'–':Number(n).toFixed(d);
   const unique = arr => Array.from(new Set(arr));
-  const by = (a,b)=>a<b?-1:a>b?1:0;
 
   function parseCsv(text){
     const lines = text.replace(/\uFEFF/g,'').split(/\r?\n/).filter(l=>l.trim().length>0);
-    const headerIdx = lines.findIndex(l => /^timestamp_iso,/.test(l.trim()));
-    const header = (headerIdx>=0?lines[headerIdx]:lines[0]).split(',');
-    const idxTs = header.indexOf('timestamp_iso');
+    const header = lines[0].split(',');
+    const idxTs = header.indexOf('timestamp');
     const idxS  = header.indexOf('source');
     const idxT  = header.indexOf('temp_c');
     const idxH  = header.indexOf('humidity_pct');
-    const rows  = (headerIdx>=0?lines.slice(headerIdx+1):lines.slice(1));
+    const rows  = lines.slice(1);
 
     const out=[];
     for(const l of rows){
-      if(/^timestamp_iso,/.test(l)) continue;
       const p=l.split(',');
-      if (p.length < (idxS>=0?4:3)) continue;
+      if (p.length < 4) continue;
       const ts = new Date(p[idxTs]);
       if (Number.isNaN(ts.getTime())) continue;
-      const src = idxS>=0 ? (p[idxS]||'').trim() : 'default';
-      const tStr=(p[idxT]||'').replace(',','.').trim();
-      const hStr=(p[idxH]||'').replace(',','.').trim();
-      const temp=tStr===''?null:Number(tStr);
-      const hum =hStr===''?null:Number(hStr);
-      if ((temp===null||Number.isNaN(temp)) && (hum===null||Number.isNaN(hum))) continue;
-      out.push({ ts, src:String(src), temp:Number.isNaN(temp)?null:temp, hum:Number.isNaN(hum)?null:hum });
+      const src = (p[idxS]||'').trim();
+      const temp = p[idxT]? Number(p[idxT]): null;
+      const hum  = p[idxH]? Number(p[idxH]): null;
+      out.push({ ts, src, temp, hum });
     }
     return out.sort((a,b)=>a.ts-b.ts);
   }
 
   function buildLabels(rows){
-    const map=new Map();
-    rows.forEach(r=>{ const L=r.ts.toLocaleString('cs-CZ',{hour12:false}); if(!map.has(L)) map.set(L,r.ts); });
-    return Array.from(map.keys()).sort((a,b)=> by(map.get(a), map.get(b)));
+    return rows.map(r => r.ts.toLocaleString('cs-CZ',{hour12:false}));
   }
 
   function rangeFilter(rows, mode, fromDate, toDate){
@@ -185,23 +145,20 @@
     const datasets=[];
     for(const src of enabledSources){
       const arr = rows.filter(r=>r.src===src);
-      const labelText = SOURCE_LABELS[src] || ("Stanice " + src);
-
       if (showTemp){
         const mapT=new Map(arr.map(r=>[ r.ts.toLocaleString('cs-CZ',{hour12:false}), r.temp ]));
         const dataT = labels.map(L => mapT.has(L)? mapT.get(L): null);
-        datasets.push({ label:`Teplota (°C) – ${labelText}`, data:dataT, yAxisID:'yT', tension:0.25, spanGaps:true, pointRadius:0 });
+        datasets.push({ label:`Teplota (°C) – ${src}`, data:dataT, yAxisID:'yT', tension:0.25, spanGaps:true, pointRadius:0 });
       }
       if (showHum){
         const mapH=new Map(arr.map(r=>[ r.ts.toLocaleString('cs-CZ',{hour12:false}), r.hum ]));
         const dataH = labels.map(L => mapH.has(L)? mapH.get(L): null);
-        datasets.push({ label:`Vlhkost (%) – ${labelText}`, data:dataH, yAxisID:'yH', tension:0.25, spanGaps:true, pointRadius:0 });
+        datasets.push({ label:`Vlhkost (%) – ${src}`, data:dataH, yAxisID:'yH', tension:0.25, spanGaps:true, pointRadius:0 });
       }
     }
     return datasets;
   }
 
-  // ---------- DOM prvky ----------
   const showTempEl = document.getElementById('showTemp');
   const showHumEl  = document.getElementById('showHum');
   const rangeEl    = document.getElementById('range');
@@ -216,9 +173,7 @@
   const tminEl     = document.getElementById('tmin');
   const tmaxEl     = document.getElementById('tmax');
 
-  // téma
-  const savedTheme = localStorage.getItem('theme');
-  if (savedTheme==='light') document.documentElement.classList.add('light');
+  if (localStorage.getItem('theme')==='light') document.documentElement.classList.add('light');
   themeBtn.addEventListener('click', () => {
     document.documentElement.classList.toggle('light');
     localStorage.setItem('theme', document.documentElement.classList.contains('light')?'light':'dark');
@@ -226,39 +181,44 @@
 
   let chart, RAW=[], sources=[], enabledSrc={}, currentRange='all', currentFrom='', currentTo='';
 
-  async function reload(fileName) {
-    try {
-      const text = await loadCsv(fileName);
+  loadCsv()
+    .then(text => {
       RAW = parseCsv(text);
       sources = unique(RAW.map(r=>r.src)).sort();
-      enabledSrc = {};
       togglesEl.innerHTML = '';
       sources.forEach(src => {
         enabledSrc[src]=true;
         const id='src_'+src.replace(/\W/g,'_');
         const lbl=document.createElement('label'); lbl.className='chip';
-        const labelText = SOURCE_LABELS[src] || ("Stanice " + src);
-        lbl.innerHTML = `<input type="checkbox" id="${id}" data-src="${src}" checked> ${labelText}`;
+        lbl.innerHTML = `<input type="checkbox" id="${id}" data-src="${src}" checked> Stanice ${src}`;
         lbl.addEventListener('change', e => { enabledSrc[src] = e.target.checked; redraw(); });
         togglesEl.appendChild(lbl);
       });
       redraw();
-    } catch(err) {
-      console.error(err);
-      alert('Nepodařilo se načíst data: '+fileName);
-    }
-  }
-  window.reload = reload;
+    })
+    .catch(err => { console.error(err); alert('Nepodařilo se načíst data (CSV).'); });
+
+  showTempEl.addEventListener('change', redraw);
+  showHumEl .addEventListener('change', redraw);
+  rangeEl   .addEventListener('change', () => {
+    currentRange = rangeEl.value;
+    customWrap.style.display = (currentRange === 'custom') ? 'inline-flex' : 'none';
+    if (currentRange !== 'custom') { currentFrom=''; currentTo=''; fromEl.value=''; toEl.value=''; }
+    redraw();
+  });
+  applyBtn  .addEventListener('click', () => {
+    currentFrom = fromEl.value || '';
+    currentTo   = toEl.value   || '';
+    redraw();
+  });
 
   function updateExtremes(rows){
     const tRows = rows.filter(r=>r.temp!==null && !Number.isNaN(r.temp));
     if (!tRows.length) { tminEl.textContent='–'; tmaxEl.textContent='–'; return; }
     const minR = tRows.reduce((m,r)=> r.temp < m.temp ? r : m, tRows[0]);
     const maxR = tRows.reduce((m,r)=> r.temp > m.temp ? r : m, tRows[0]);
-    const labelMin = SOURCE_LABELS[minR.src] || ("Stanice " + minR.src);
-    const labelMax = SOURCE_LABELS[maxR.src] || ("Stanice " + maxR.src);
-    tminEl.textContent = `${minR.temp.toFixed(2)} °C — ${minR.ts.toLocaleString('cs-CZ',{hour12:false})} (${labelMin})`;
-    tmaxEl.textContent = `${maxR.temp.toFixed(2)} °C — ${maxR.ts.toLocaleString('cs-CZ',{hour12:false})} (${labelMax})`;
+    tminEl.textContent = `${minR.temp.toFixed(2)} °C — ${minR.ts.toLocaleString('cs-CZ',{hour12:false})} (stanice ${minR.src})`;
+    tmaxEl.textContent = `${maxR.temp.toFixed(2)} °C — ${maxR.ts.toLocaleString('cs-CZ',{hour12:false})} (stanice ${maxR.src})`;
   }
 
   function redraw(){
@@ -293,8 +253,8 @@
       options:{
         responsive:true, maintainAspectRatio:false, animation:false,
         interaction:{ mode:'index', intersect:false },
-scales:{
-          x:{ ticks:{ autoSkip:true, maxRotation:0 } },
+        scales:{
+          x:{ ticks:{ autoSkip:true, maxRotation:45, minRotation:45, maxTicksLimit:6 } },
           yT:{ title:{display:true, text:'°C'}, grid:{drawBorder:false}, ...yTopt },
           yH:{ position:'right', title:{display:true, text:'%'}, grid:{drawOnChartArea:false}, suggestedMin:0, suggestedMax:100 }
         },
@@ -302,31 +262,7 @@ scales:{
       }
     });
   }
-  window.redraw = redraw;
-
-  // ovládání
-  showTempEl.addEventListener('change', redraw);
-  showHumEl .addEventListener('change', redraw);
-  rangeEl   .addEventListener('change', () => {
-    currentRange = rangeEl.value;
-    customWrap.style.display = (currentRange === 'custom') ? 'inline-flex' : 'none';
-    if (currentRange !== 'custom') { currentFrom=''; currentTo=''; fromEl.value=''; toEl.value=''; }
-    redraw();
-  });
-  applyBtn  .addEventListener('click', () => {
-    currentFrom = fromEl.value || '';
-    currentTo   = toEl.value   || '';
-    redraw();
-  });
-
-  // start
-  loadFileList();
 })();
 </script>
 </body>
-      <footer>
-
-        <p>&copy; 2025 Rosťa (rostav@gmail.com) </p>
-
-    </footer>
 </html>
