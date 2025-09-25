@@ -5,53 +5,18 @@
   <title>Meteo archiv</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@1.2.1/dist/chartjs-plugin-zoom.min.js"></script>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 0;
-      background: #111;
-      color: #eee;
-    }
-    header {
-      padding: 10px;
-      font-size: 1.2em;
-      font-weight: bold;
-      display: flex;
-      align-items: center;
-    }
-    header img {
-      height: 24px;
-      margin-right: 8px;
-    }
-    .controls, .stats {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      padding: 10px;
-    }
-    select, button {
-      padding: 5px;
-    }
-    .stat-box {
-      flex: 1;
-      background: #222;
-      padding: 15px;
-      margin: 5px;
-      border-radius: 8px;
-      text-align: center;
-    }
-    canvas {
-      background: #fff;
-      border-radius: 8px;
-      margin: 10px;
-      padding: 10px;
-    }
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #111; color: #eee; }
+    header { padding: 10px; font-size: 1.2em; font-weight: bold; display: flex; align-items: center; }
+    header img { height: 24px; margin-right: 8px; }
+    .controls, .stats { display: flex; flex-wrap: wrap; gap: 10px; padding: 10px; }
+    select, button { padding: 5px; }
+    .stat-box { flex: 1; background: #222; padding: 15px; margin: 5px; border-radius: 8px; text-align: center; }
+    canvas { background: #fff; border-radius: 8px; margin: 10px; padding: 10px; }
     @media (max-width: 600px) {
-      .controls, .stats {
-        flex-direction: column;
-      }
+      .controls, .stats { flex-direction: column; }
     }
   </style>
 </head>
@@ -99,7 +64,7 @@
     const sensorNames = { "2764": "Venek", "4065": "UNI" };
 
     async function loadIndex() {
-      const res = await fetch("data/index.json");   // ✅ FIXNUTÁ CESTA
+      const res = await fetch("data/index.json");   // ✅ FIX: správná cesta
       const files = await res.json();
       const select = document.getElementById("fileSelect");
       select.innerHTML = "";
@@ -114,7 +79,7 @@
     }
 
     async function loadCSV(file) {
-      const res = await fetch("data/" + file);   // ✅ FIXNUTÁ CESTA
+      const res = await fetch("data/" + file);   // ✅ FIX: správná cesta
       const text = await res.text();
       const rows = text.trim().split("\n").map(r => r.split(","));
       const data = rows.map(r => ({
@@ -123,7 +88,6 @@
         temp: parseFloat(r[2]),
         hum: parseFloat(r[3])
       }));
-
       renderChart(data);
     }
 
