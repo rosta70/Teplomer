@@ -8,63 +8,21 @@
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1"></script>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0; padding: 0;
-      background: #111; color: #eee;
-    }
-    header {
-      display: flex; align-items: center;
-      padding: 10px 15px;
-      background: #000;
-    }
-    header h1 {
-      flex: 1;
-      font-size: 1.4em;
-      margin: 0;
-    }
-    header img {
-      width: 28px; height: 28px;
-      margin-right: 10px;
-    }
-    .controls {
-      display: flex; flex-wrap: wrap;
-      gap: 8px;
-      padding: 10px 15px;
-      background: #222;
-    }
-    .controls label { margin-right: 8px; }
-    .stats {
-      display: flex; flex-wrap: wrap;
-      gap: 10px;
-      padding: 10px 15px;
-    }
-    .card {
-      flex: 1;
-      min-width: 140px;
-      background: #1c1c1c;
-      border-radius: 8px;
-      padding: 10px;
-      text-align: center;
-    }
-    .card h3 { margin: 0 0 5px; font-size: 1em; }
-    canvas { width: 100% !important; height: 60vh !important; }
-    .buttons button {
-      padding: 6px 12px;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      font-weight: bold;
-      color: #fff;
-    }
-    .reset { background: #f0ad4e; }
-    .csv { background: #0275d8; }
-    .png { background: #5cb85c; }
-    @media (max-width: 600px) {
-      .controls { flex-direction: column; }
-      .stats { flex-direction: column; }
-      canvas { height: 50vh !important; }
-    }
+    body { font-family: Arial, sans-serif; margin:0; padding:0; background:#111; color:#eee; }
+    header { display:flex; align-items:center; padding:10px 15px; background:#000; }
+    header h1 { flex:1; font-size:1.4em; margin:0; }
+    header img { width:28px; height:28px; margin-right:10px; }
+    .controls { display:flex; flex-wrap:wrap; gap:8px; padding:10px 15px; background:#222; }
+    .controls label { margin-right:8px; }
+    .stats { display:flex; flex-wrap:wrap; gap:10px; padding:10px 15px; }
+    .card { flex:1; min-width:140px; background:#1c1c1c; border-radius:8px; padding:10px; text-align:center; }
+    .card h3 { margin:0 0 5px; font-size:1em; }
+    canvas { width:100% !important; height:60vh !important; }
+    .buttons button { padding:6px 12px; border:none; border-radius:6px; cursor:pointer; font-weight:bold; color:#fff; }
+    .reset { background:#f0ad4e; }
+    .csv { background:#0275d8; }
+    .png { background:#5cb85c; }
+    @media (max-width:600px) { .controls{flex-direction:column;} .stats{flex-direction:column;} canvas{height:50vh!important;} }
   </style>
 </head>
 <body>
@@ -82,7 +40,6 @@
     <option value="week">Týden</option>
     <option value="month">Měsíc</option>
     <option value="all">Vše</option>
-    <option value="custom">Vlastní rozsah</option>
   </select>
 
   <select id="fileSelect"></select>
@@ -113,13 +70,9 @@
 let allData = [];
 let chart;
 
-// ✅ senzory přímo z CSV (UNI, Venek)
-function normalizeSource(src) {
-  if (!src) return "Neznámé";
-  return src.trim();
-}
+// mapování ID → název
+const SENSOR_NAMES = { "2764":"Venek", "4065":"UNI" };
 
-// načti seznam souborů
 async function loadFileList() {
   const res = await fetch("docs/data/index.json");
   const files = await res.json();
@@ -136,7 +89,6 @@ async function loadFileList() {
   loadCSV(select.value);
 }
 
-// načti CSV
 async function loadCSV(file) {
   try {
     const res = await fetch("docs/data/" + file);
@@ -152,22 +104,14 @@ async function loadCSV(file) {
 
 function parseCSV(text) {
   let rows = text.trim().split("\n").map(r => r.split(","));
-  let header = rows.shift();
-
-  let tsIdx = header.indexOf("timestamp");
-  let srcIdx = header.indexOf("source");
-  let tIdx = header.indexOf("temp_c");
-  let hIdx = header.indexOf("humidity_pct");
-
-  allData = rows
-    .filter(r => r.length >= 4)
-    .map(r => ({
-      t: new Date(r[tsIdx].replace(" ", "T")),
-      s: normalizeSource(r[srcIdx]),
-      temp: r[tIdx] ? parseFloat(r[tIdx]) : null,
-      hum: r[hIdx] ? parseFloat(r[hIdx]) : null
-    }));
-
+  allData = rows.map(r => {
+    let t = new Date(r[0].replace(" ", "T"));
+    let id = r[1];
+    let source = SENSOR_NAMES[id] || id;
+    let temp = r[2] ? parseFloat(r[2]) : null;
+    let hum = r[3] ? parseFloat(r[3]) : null;
+    return { t, s:source, temp, hum };
+  });
   renderSensorCheckboxes();
 }
 
@@ -199,7 +143,6 @@ function updateChart() {
   let data = filterData();
   let showTemp = document.getElementById("tempToggle").checked;
   let showHum = document.getElementById("humToggle").checked;
-
   const selectedSensors = [...document.querySelectorAll("#sensorCheckboxes input:checked")].map(cb => cb.id.replace("sensor_",""));
 
   let datasets = [];
