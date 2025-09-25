@@ -3,11 +3,30 @@ name: Cron test
 on:
   schedule:
     - cron: "* * * * *"   # každou minutu
-  workflow_dispatch:
+  workflow_dispatch:       # možnost ručního spuštění
+
+permissions:
+  contents: write
 
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
       - name: Print date
         run: date
+
+      - name: Append date to cron_log.txt
+        run: |
+          mkdir -p docs/data
+          echo "$(date -u)" >> docs/data/cron_log.txt
+
+      - name: Commit changes
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "actions@github.com"
+          git add docs/data/cron_log.txt
+          git commit -m "Cron test run at $(date -u)" || echo "No changes to commit"
+          git push
