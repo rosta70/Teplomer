@@ -15,7 +15,7 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0   # důležité, aby fungovalo rebase
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -32,8 +32,8 @@ jobs:
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "actions@github.com"
-          git fetch origin main
-          git rebase origin/main
           git add docs/data/history.csv
+          git fetch origin main
+          git rebase origin/main || git rebase --abort
           git commit -m "Append brrr.cz data" || echo "No changes to commit"
           git push origin HEAD:main
