@@ -53,7 +53,7 @@
     <div class="col-auto">
       <select id="rangeSelect" class="form-select form-select-sm">
         <option value="all">Vše</option>
-        <option value="today">Dnes</option>
+        <option value="today" selected>Dnes</option>
         <option value="week">Týden</option>
         <option value="month">Měsíc</option>
         <option value="custom">Vlastní</option>
@@ -205,7 +205,11 @@ function updateChart() {
           mode: "nearest",
           intersect: false,
           callbacks: {
-            label: ctx => `${ctx.dataset.label}: ${ctx.formattedValue}`,
+            label: ctx => {
+              const isTemp = ctx.dataset.label.includes("°C");
+              const icon = isTemp ? "🌡" : "💧";
+              return `${icon} ${ctx.dataset.label}: ${ctx.formattedValue}`;
+            },
             title: items => new Date(items[0].parsed.x).toLocaleString()
           }
         },
