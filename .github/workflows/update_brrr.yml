@@ -3,10 +3,7 @@ name: Update brrr.cz data
 on:
   schedule:
     - cron: "*/10 * * * *"   # každých 10 minut
-  workflow_dispatch:          # možnost ručního spuštění
-
-permissions:
-  contents: write
+  workflow_dispatch:
 
 jobs:
   update:
@@ -20,6 +17,12 @@ jobs:
         with:
           python-version: "3.x"
 
+      - name: Install dependencies
+        run: |
+          pip install requests
+          python3 -m pip show requests
+          python3 -c "import requests; print('requests OK, verze:', requests.__version__)"
+      
       - name: Append last values from brrr.cz
         run: python3 scripts/append_brrr.py
 
@@ -28,5 +31,5 @@ jobs:
           git config --global user.name "github-actions"
           git config --global user.email "actions@github.com"
           git add docs/data/history.csv
-          git commit -m "Update history.csv with new brrr.cz values" || echo "No changes to commit"
+          git commit -m "Append brrr.cz data" || echo "No changes to commit"
           git push
