@@ -1,5 +1,5 @@
 import os
-import csv
+import shutil
 from datetime import datetime
 
 DATA_DIR = "docs/data"
@@ -7,46 +7,22 @@ HISTORY_FILE = os.path.join(DATA_DIR, "history.csv")
 
 def rotate_history():
     if not os.path.exists(HISTORY_FILE):
-        print("Soubor history.csv neexistuje, přeskočeno.")
+        print("Soubor history.csv neexistuje.")
         return
 
-    # načíst aktuální data
-    with open(HISTORY_FILE, "r") as f:
-        rows = list(csv.reader(f))
-
-    if not rows:
-        print("Soubor history.csv je prázdný, přeskočeno.")
-        return
-
-    # zjistit aktuální měsíc
+    # Název archivu podle měsíce
     now = datetime.utcnow()
-    archive_name = f"history_{now.year}_{now.month:02d}.csv"
-    archived = os.path.join(DATA_DIR, archive_name)
+    archive_name = os.path.join(DATA_DIR, f"history_{now.strftime('%Y_%m')}.csv")
 
-    # uložit data do měsíčního souboru (bez hlavičky)
-    with open(archived, "w", newline="") as f:
-        writer = csv.writer(f)
-        writer.writerows(rows)
+    # Přesun do archivního souboru
+    shutil.move(HISTORY_FILE, archive_name)
+    print(f"Přesunuto do {archive_name}")
 
-    # vymazat původní history.csv
-    open(HISTORY_FILE, "w").close()
+    # Založ nový prázdný history.csv s hlavičkou
+    with open(HISTORY_FILE, "w", encoding="utf-8") as f:
+        f.write("timestamp,source,temp_c,humidity_pct\n")
+    print(f"Založen nový {HISTORY_FILE}")
 
-    # aktualizovat index.json
-    index_file = os.path.join(DATA_DIR, "index.json")
-    files = []
-    if os.path.exists(index_file):
-        import json
-        with open(index_file, "r") as f:
-            files = json.load(f)
-
-    if archive_name not in files:
-        files.insert(0, archive_name)  # nejnovější dopředu
-
-    with open(index_file, "w") as f:
-        import json
-        json.dump(files, f, indent=2)
-
-    print(f"Archivace dokončena: {archive_name}")
 
 if __name__ == "__main__":
     rotate_history()
