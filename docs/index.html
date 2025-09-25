@@ -3,216 +3,231 @@
 <head>
   <meta charset="UTF-8">
   <title>Meteo archiv</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1"></script>
   <style>
-    body { font-family: Arial, sans-serif; margin:0; padding:0; background:#111; color:#eee; }
-    header { display:flex; align-items:center; padding:10px 15px; background:#000; }
-    header h1 { flex:1; font-size:1.4em; margin:0; }
-    header img { width:28px; height:28px; margin-right:10px; }
-    .controls { display:flex; flex-wrap:wrap; gap:8px; padding:10px 15px; background:#222; }
-    .controls label { margin-right:8px; }
-    .stats { display:flex; flex-wrap:wrap; gap:10px; padding:10px 15px; }
-    .card { flex:1; min-width:140px; background:#1c1c1c; border-radius:8px; padding:10px; text-align:center; }
-    .card h3 { margin:0 0 5px; font-size:1em; }
-    canvas { width:100% !important; height:60vh !important; }
-    .buttons button { padding:6px 12px; border:none; border-radius:6px; cursor:pointer; font-weight:bold; color:#fff; }
-    .reset { background:#f0ad4e; }
-    .csv { background:#0275d8; }
-    .png { background:#5cb85c; }
-    @media (max-width:600px) { .controls{flex-direction:column;} .stats{flex-direction:column;} canvas{height:50vh!important;} }
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #111;
+      color: #eee;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      padding: 10px;
+      background: #000;
+      font-size: 1.2em;
+      font-weight: bold;
+    }
+    header img {
+      height: 24px;
+      margin-right: 8px;
+    }
+    .controls {
+      padding: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      background: #222;
+    }
+    .controls select,
+    .controls button {
+      padding: 5px 10px;
+      border-radius: 4px;
+      border: none;
+    }
+    .stats {
+      display: flex;
+      justify-content: space-around;
+      padding: 10px;
+      background: #222;
+    }
+    .stats div {
+      background: #333;
+      padding: 10px;
+      border-radius: 8px;
+      text-align: center;
+      flex: 1;
+      margin: 5px;
+    }
+    canvas {
+      background: #fff;
+      margin: 15px;
+      border-radius: 8px;
+      max-height: 70vh;
+    }
+    @media (max-width: 768px) {
+      .stats {
+        flex-direction: column;
+      }
+    }
   </style>
 </head>
 <body>
-<header>
-  <img src="https://img.icons8.com/emoji/48/000000/sun-emoji.png" alt="sun">
-  <h1>Meteo archiv</h1>
-</header>
+  <header>
+    <img src="https://cdn-icons-png.flaticon.com/512/869/869869.png" alt="logo">
+    Meteo archiv
+  </header>
 
-<div class="controls">
-  <label><input type="checkbox" id="tempToggle" checked> Teplota (°C)</label>
-  <label><input type="checkbox" id="humToggle" checked> Vlhkost (%)</label>
-
-  <select id="rangeSelect">
-    <option value="today" selected>Dnes</option>
-    <option value="week">Týden</option>
-    <option value="month">Měsíc</option>
-    <option value="all">Vše</option>
-  </select>
-
-  <select id="fileSelect"></select>
-
-  <div id="sensorCheckboxes"></div>
-
-  <div class="buttons">
-    <button class="reset" onclick="resetZoom()">Reset</button>
-    <button class="csv" onclick="downloadCSV()">CSV</button>
-    <button class="png" onclick="downloadPNG()">PNG</button>
+  <div class="controls">
+    <label><input type="checkbox" id="showTemp" checked> Teplota (°C)</label>
+    <label><input type="checkbox" id="showHumidity" checked> Vlhkost (%)</label>
+    <select id="rangeSelect">
+      <option value="today">Dnes</option>
+      <option value="week">Týden</option>
+      <option value="month">Měsíc</option>
+      <option value="all">Vše</option>
+    </select>
+    <select id="fileSelect"></select>
+    <button id="resetZoom" style="background:#f0ad4e;color:#fff;">Reset</button>
+    <button id="downloadCSV" style="background:#0275d8;color:#fff;">CSV</button>
+    <button id="downloadPNG" style="background:#5cb85c;color:#fff;">PNG</button>
   </div>
-</div>
 
-<div class="stats">
-  <div class="card">
-    <h3>Min. teplota</h3>
-    <div id="minTemp">-</div>
+  <div class="controls" id="sensorCheckboxes"></div>
+
+  <div class="stats">
+    <div id="minTemp">Min. teplota<br>-</div>
+    <div id="maxTemp">Max. teplota<br>-</div>
   </div>
-  <div class="card">
-    <h3>Max. teplota</h3>
-    <div id="maxTemp">-</div>
-  </div>
-</div>
 
-<canvas id="chart"></canvas>
+  <canvas id="chart"></canvas>
 
-<script>
-let allData = [];
-let chart;
+  <script>
+    let chart;
+    let allData = [];
+    let sensorMap = { "2764": "Venek", "4065": "UNI" };
 
-// mapování ID → název
-const SENSOR_NAMES = { "2764":"Venek", "4065":"UNI" };
-
-async function loadFileList() {
-  const res = await fetch("docs/data/index.json");
-  const files = await res.json();
-  const select = document.getElementById("fileSelect");
-  select.innerHTML = "";
-  files.forEach(f => {
-    const opt = document.createElement("option");
-    opt.value = f;
-    opt.textContent = f;
-    if (f === "history.csv") opt.selected = true;
-    select.appendChild(opt);
-  });
-  select.addEventListener("change", () => loadCSV(select.value));
-  loadCSV(select.value);
-}
-
-async function loadCSV(file) {
-  try {
-    const res = await fetch("docs/data/" + file);
-    if (!res.ok) throw new Error("Chyba načtení CSV");
-    const text = await res.text();
-    parseCSV(text);
-    updateChart();
-  } catch (e) {
-    alert("Nepodařilo se načíst data (CSV).");
-    console.error(e);
-  }
-}
-
-function parseCSV(text) {
-  let rows = text.trim().split("\n").map(r => r.split(","));
-  allData = [];
-
-  rows.forEach((r, i) => {
-    // přeskočíme hlavičku, pokud by existovala
-    if (i === 0 && (r[0].toLowerCase().includes("timestamp") || r[1] === "source")) {
-      return;
+    async function loadFileList() {
+      const res = await fetch("data/index.json");
+      const files = await res.json();
+      const select = document.getElementById("fileSelect");
+      select.innerHTML = "";
+      files.forEach(f => {
+        const opt = document.createElement("option");
+        opt.value = f;
+        opt.textContent = f;
+        select.appendChild(opt);
+      });
+      select.value = "history.csv";
+      loadData();
     }
 
-    if (r.length >= 3) {
-      let t = new Date(r[0].replace(" ", "T"));
-      let id = r[1];
-      let source = SENSOR_NAMES[id] || id;
-      let temp = r[2] ? parseFloat(r[2]) : null;
-      let hum = r[3] ? parseFloat(r[3]) : null;
-      allData.push({ t, s: source, temp, hum });
-    }
-  });
-
-  renderSensorCheckboxes();
-}
-
-
-function renderSensorCheckboxes() {
-  const sensors = [...new Set(allData.map(d => d.s))];
-  const div = document.getElementById("sensorCheckboxes");
-  div.innerHTML = "";
-  sensors.forEach(s => {
-    const id = "sensor_" + s;
-    const lbl = document.createElement("label");
-    lbl.innerHTML = `<input type="checkbox" id="${id}" checked> ${s}`;
-    div.appendChild(lbl);
-    document.getElementById(id).addEventListener("change", updateChart);
-  });
-}
-
-function filterData() {
-  let range = document.getElementById("rangeSelect").value;
-  let end = new Date();
-  let start;
-  if (range === "today") start = new Date(end.getFullYear(), end.getMonth(), end.getDate());
-  else if (range === "week") start = new Date(end.getTime() - 7*24*60*60*1000);
-  else if (range === "month") start = new Date(end.getTime() - 30*24*60*60*1000);
-  else start = new Date(0);
-  return allData.filter(d => d.t >= start && d.t <= end);
-}
-
-function updateChart() {
-  let data = filterData();
-  let showTemp = document.getElementById("tempToggle").checked;
-  let showHum = document.getElementById("humToggle").checked;
-  const selectedSensors = [...document.querySelectorAll("#sensorCheckboxes input:checked")].map(cb => cb.id.replace("sensor_",""));
-
-  let datasets = [];
-  selectedSensors.forEach((s, idx) => {
-    let sensorData = data.filter(d => d.s === s);
-    if (showTemp) datasets.push({
-      label: s+" (°C)", data: sensorData.map(d => ({x:d.t, y:d.temp})),
-      borderColor: idx ? "red" : "blue", yAxisID: "y", fill:false, pointRadius:0
-    });
-    if (showHum) datasets.push({
-      label: s+" (%)", data: sensorData.map(d => ({x:d.t, y:d.hum})),
-      borderColor: idx ? "cyan" : "orange", yAxisID: "y1", fill:false, pointRadius:0
-    });
-  });
-
-  if (chart) chart.destroy();
-  chart = new Chart(document.getElementById("chart"), {
-    type:"line",
-    data:{datasets},
-    options:{
-      responsive:true,
-      interaction:{mode:"nearest",intersect:false},
-      scales:{
-        x:{type:"time", time:{unit:"hour"}},
-        y:{type:"linear", position:"left", title:{display:true,text:"°C"}},
-        y1:{type:"linear", position:"right", title:{display:true,text:"%"}, grid:{drawOnChartArea:false}}
-      },
-      plugins:{
-        zoom:{zoom:{wheel:{enabled:true}, pinch:{enabled:true}, mode:"x"}, pan:{enabled:true, mode:"x"}}
+    async function loadData() {
+      const file = document.getElementById("fileSelect").value;
+      try {
+        const res = await fetch("data/" + file);
+        const text = await res.text();
+        const rows = text.trim().split("\n").map(r => r.split(","));
+        const header = rows.shift();
+        allData = rows.map(r => ({
+          timestamp: new Date(r[0]),
+          source: r[1],
+          temp: parseFloat(r[2]),
+          hum: parseFloat(r[3])
+        }));
+        updateSensors();
+        updateChart();
+      } catch (e) {
+        alert("Nepodařilo se načíst data (CSV).");
       }
     }
-  });
 
-  updateStats(data, selectedSensors);
-}
+    function updateSensors() {
+      const box = document.getElementById("sensorCheckboxes");
+      box.innerHTML = "";
+      const sensors = [...new Set(allData.map(r => r.source))];
+      sensors.forEach(id => {
+        const label = document.createElement("label");
+        label.innerHTML = `<input type="checkbox" value="${id}" checked> ${sensorMap[id] || id}`;
+        box.appendChild(label);
+      });
+    }
 
-function updateStats(data, sensors) {
-  let temps = data.filter(d => d.temp!=null && sensors.includes(d.s));
-  if (!temps.length) {
-    document.getElementById("minTemp").textContent = "-";
-    document.getElementById("maxTemp").textContent = "-";
-    return;
-  }
-  let min = temps.reduce((a,b)=>a.temp<b.temp?a:b);
-  let max = temps.reduce((a,b)=>a.temp>b.temp?a:b);
-  document.getElementById("minTemp").textContent =
-    `${min.temp.toFixed(1)} °C (${min.s}, ${min.t.toLocaleString()})`;
-  document.getElementById("maxTemp").textContent =
-    `${max.temp.toFixed(1)} °C (${max.s}, ${max.t.toLocaleString()})`;
-}
+    function updateChart() {
+      const showTemp = document.getElementById("showTemp").checked;
+      const showHumidity = document.getElementById("showHumidity").checked;
+      const activeSensors = [...document.querySelectorAll("#sensorCheckboxes input:checked")].map(i => i.value);
 
-function resetZoom(){ if(chart) chart.resetZoom(); }
-function downloadCSV(){
-  const blob = new Blob([allData.map(d=>`${d.t.toISOString()},${d.s},${d.temp??""},${d.hum??""}`).join("\n")],{type:"text/csv"});
-  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="export.csv"; a.click();
-}
-function downloadPNG(){ if(chart){const a=document.createElement("a"); a.href=chart.toBase64Image(); a.download="chart.png"; a.click();} }
+      const filtered = allData.filter(r => activeSensors.includes(r.source));
 
-loadFileList();
-</script>
+      const datasets = [];
+      activeSensors.forEach(sensor => {
+        if (showTemp) {
+          datasets.push({
+            label: `${sensorMap[sensor] || sensor} (°C)`,
+            data: filtered.filter(r => r.source === sensor).map(r => ({x: r.timestamp, y: r.temp})),
+            borderColor: sensor === "2764" ? "red" : "blue",
+            yAxisID: "y"
+          });
+        }
+        if (showHumidity) {
+          datasets.push({
+            label: `${sensorMap[sensor] || sensor} (%)`,
+            data: filtered.filter(r => r.source === sensor).map(r => ({x: r.timestamp, y: r.hum})),
+            borderColor: sensor === "2764" ? "orange" : "cyan",
+            yAxisID: "y1"
+          });
+        }
+      });
+
+      if (chart) chart.destroy();
+      chart = new Chart(document.getElementById("chart"), {
+        type: "line",
+        data: { datasets },
+        options: {
+          responsive: true,
+          interaction: { mode: "nearest", intersect: false },
+          plugins: {
+            zoom: {
+              zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: "x" },
+              pan: { enabled: true, mode: "x" }
+            }
+          },
+          scales: {
+            x: { type: "time", time: { unit: "hour" } },
+            y: { type: "linear", position: "left", title: { display: true, text: "°C" } },
+            y1: { type: "linear", position: "right", title: { display: true, text: "%" }, grid: { drawOnChartArea: false } }
+          },
+          elements: { point: { radius: 0 } }
+        }
+      });
+
+      updateStats(filtered);
+    }
+
+    function updateStats(data) {
+      if (!data.length) {
+        document.getElementById("minTemp").innerHTML = "Min. teplota<br>-";
+        document.getElementById("maxTemp").innerHTML = "Max. teplota<br>-";
+        return;
+      }
+      const min = data.reduce((a, b) => a.temp < b.temp ? a : b);
+      const max = data.reduce((a, b) => a.temp > b.temp ? a : b);
+      document.getElementById("minTemp").innerHTML = `Min. teplota<br><b>${min.temp} °C</b><br>${sensorMap[min.source] || min.source}, ${min.timestamp.toLocaleString()}`;
+      document.getElementById("maxTemp").innerHTML = `Max. teplota<br><b>${max.temp} °C</b><br>${sensorMap[max.source] || max.source}, ${max.timestamp.toLocaleString()}`;
+    }
+
+    document.getElementById("fileSelect").addEventListener("change", loadData);
+    document.getElementById("showTemp").addEventListener("change", updateChart);
+    document.getElementById("showHumidity").addEventListener("change", updateChart);
+    document.getElementById("sensorCheckboxes").addEventListener("change", updateChart);
+    document.getElementById("resetZoom").addEventListener("click", () => chart.resetZoom());
+    document.getElementById("downloadCSV").addEventListener("click", () => {
+      const file = document.getElementById("fileSelect").value;
+      window.open("data/" + file, "_blank");
+    });
+    document.getElementById("downloadPNG").addEventListener("click", () => {
+      const a = document.createElement("a");
+      a.href = chart.toBase64Image();
+      a.download = "chart.png";
+      a.click();
+    });
+
+    loadFileList();
+  </script>
 </body>
 </html>
