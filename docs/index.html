@@ -293,14 +293,41 @@
       options:{
         responsive:true, maintainAspectRatio:false, animation:false,
         interaction:{ mode:'index', intersect:false },
-scales:{
-          x:{ ticks:{ autoSkip:true, maxRotation:0 } },
-          yT:{ title:{display:true, text:'°C'}, grid:{drawBorder:false}, ...yTopt },
-          yH:{ position:'right', title:{display:true, text:'%'}, grid:{drawOnChartArea:false}, suggestedMin:0, suggestedMax:100 }
-        },
-        plugins:{ legend:{ position:'top' } }
-      }
-    });
+scales: {
+  x: {
+    ticks: {
+      autoSkip: true,      // vynechávání nadbytečných popisků
+      maxTicksLimit: 6,    // max. 6 popisků
+      maxRotation: 45,     // natočení textu
+      minRotation: 45
+    }
+  },
+  yT: {
+    type: 'linear',
+    position: 'left',
+    title: {
+      display: true,
+      text: '°C'
+    },
+    grid: {
+      drawBorder: false
+    }
+  },
+  yH: {
+    type: 'linear',
+    position: 'right',
+    title: {
+      display: true,
+      text: '%'
+    },
+    grid: {
+      drawOnChartArea: false
+    },
+    suggestedMin: 0,
+    suggestedMax: 100
+  }
+}
+);
   }
   window.redraw = redraw;
 
