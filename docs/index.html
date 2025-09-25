@@ -104,16 +104,27 @@ async function loadCSV(file) {
 
 function parseCSV(text) {
   let rows = text.trim().split("\n").map(r => r.split(","));
-  allData = rows.map(r => {
-    let t = new Date(r[0].replace(" ", "T"));
-    let id = r[1];
-    let source = SENSOR_NAMES[id] || id;
-    let temp = r[2] ? parseFloat(r[2]) : null;
-    let hum = r[3] ? parseFloat(r[3]) : null;
-    return { t, s:source, temp, hum };
+  allData = [];
+
+  rows.forEach((r, i) => {
+    // přeskočíme hlavičku, pokud by existovala
+    if (i === 0 && (r[0].toLowerCase().includes("timestamp") || r[1] === "source")) {
+      return;
+    }
+
+    if (r.length >= 3) {
+      let t = new Date(r[0].replace(" ", "T"));
+      let id = r[1];
+      let source = SENSOR_NAMES[id] || id;
+      let temp = r[2] ? parseFloat(r[2]) : null;
+      let hum = r[3] ? parseFloat(r[3]) : null;
+      allData.push({ t, s: source, temp, hum });
+    }
   });
+
   renderSensorCheckboxes();
 }
+
 
 function renderSensorCheckboxes() {
   const sensors = [...new Set(allData.map(d => d.s))];
