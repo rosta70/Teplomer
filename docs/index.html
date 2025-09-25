@@ -3,152 +3,237 @@
 <head>
   <meta charset="UTF-8">
   <title>Meteo archiv</title>
+  <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 20px; background: #f8f9fa; }
-    h1 { margin-bottom: 5px; }
-    .controls { margin-bottom: 15px; }
-    .controls label { margin-right: 10px; }
-    canvas { max-width: 100%; height: 400px; }
-  </style>
+  <script src="https://cdn.jsdelivr.net/npm/luxon"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon"></script>
 </head>
-<body>
-  <h1>Meteo archiv</h1>
-  <p>Zdroj: <b>brrr.cz</b> • CSV z GitHub Pages • levá osa = teplota (°C), pravá osa = vlhkost (%)</p>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen transition-colors duration-300">
 
-  <div class="controls">
-    <label><input type="checkbox" id="showTemp" checked> Teplota (°C)</label>
-    <label><input type="checkbox" id="showHumidity" checked> Vlhkost (%)</label>
+  <div class="container mx-auto p-6">
+    <h1 class="text-3xl font-bold mb-4">Meteo archiv</h1>
+    <p class="mb-6">Zdroj: <b>brrr.cz</b> · CSV z GitHub Pages</p>
 
-    <label for="fileSelect">Soubor:</label>
-    <select id="fileSelect"></select>
+    <!-- Ovládací panel -->
+    <div class="flex flex-wrap gap-4 items-center mb-6">
+      <label><input type="checkbox" id="showTemp" checked> Teplota (°C)</label>
+      <label><input type="checkbox" id="showHum" checked> Vlhkost (%)</label>
+
+      <select id="rangeSelect" class="p-1 rounded border">
+        <option value="all">Vše</option>
+        <option value="today">Dnes</option>
+        <option value="week">Týden</option>
+        <option value="month">Měsíc</option>
+        <option value="custom">Vlastní</option>
+      </select>
+
+      <input type="date" id="fromDate" class="p-1 rounded border hidden">
+      <input type="date" id="toDate" class="p-1 rounded border hidden">
+
+      <select id="fileSelect" class="p-1 rounded border"></select>
+
+      <button id="toggleTheme" class="px-3 py-1 rounded bg-gray-200 dark:bg-gray-700">Režim</button>
+      <button id="downloadCSV" class="px-3 py-1 rounded bg-blue-500 text-white">Stáhnout CSV</button>
+      <button id="downloadPNG" class="px-3 py-1 rounded bg-green-500 text-white">Stáhnout PNG</button>
+    </div>
+
+    <!-- Checkboxy senzorů -->
+    <div id="sensorCheckboxes" class="flex flex-wrap gap-4 mb-6"></div>
+
+    <!-- Statistiky -->
+    <div class="grid grid-cols-2 gap-4 mb-6">
+      <div class="p-4 bg-gray-200 dark:bg-gray-800 rounded">
+        <p>Min. teplota (vybraný rozsah)</p>
+        <p id="minTemp" class="text-xl font-bold">–</p>
+      </div>
+      <div class="p-4 bg-gray-200 dark:bg-gray-800 rounded">
+        <p>Max. teplota (vybraný rozsah)</p>
+        <p id="maxTemp" class="text-xl font-bold">–</p>
+      </div>
+    </div>
+
+    <!-- Graf -->
+    <canvas id="chart" class="w-full h-96"></canvas>
   </div>
 
-  <div>
-    <strong>Min. teplota:</strong> <span id="minTemp">-</span> °C,
-    <strong>Max. teplota:</strong> <span id="maxTemp">-</span> °C
-  </div>
+<script>
+const fileSelect = document.getElementById("fileSelect");
+const rangeSelect = document.getElementById("rangeSelect");
+const fromDate = document.getElementById("fromDate");
+const toDate = document.getElementById("toDate");
+const showTemp = document.getElementById("showTemp");
+const showHum = document.getElementById("showHum");
+const toggleTheme = document.getElementById("toggleTheme");
+const minTempEl = document.getElementById("minTemp");
+const maxTempEl = document.getElementById("maxTemp");
+const downloadCSV = document.getElementById("downloadCSV");
+const downloadPNG = document.getElementById("downloadPNG");
+const sensorCheckboxes = document.getElementById("sensorCheckboxes");
 
-  <canvas id="chart"></canvas>
+let chart;
+let allData = [];
+let activeSensors = new Set();
 
-  <script>
-    const ctx = document.getElementById('chart').getContext('2d');
-    let chart;
+// Načíst seznam archivních souborů
+async function loadIndex() {
+  try {
+    const res = await fetch("data/index.json");
+    const files = await res.json();
+    fileSelect.innerHTML = `<option value="history.csv">Aktuální měsíc</option>`;
+    files.forEach(f => {
+      fileSelect.innerHTML += `<option value="${f}">${f.replace("history_", "").replace(".csv","")}</option>`;
+    });
+  } catch (e) {
+    alert("Nepodařilo se načíst index.json");
+  }
+}
 
-    // Načíst seznam souborů z index.json
-    async function loadFileList() {
-      try {
-        const resp = await fetch('data/index.json');
-        const files = await resp.json();
-        const select = document.getElementById('fileSelect');
-        select.innerHTML = '';
+// Načíst CSV soubor
+async function loadCSV(file) {
+  try {
+    const res = await fetch("data/" + file);
+    const text = await res.text();
+    const rows = text.trim().split("\n").map(r => r.split(","));
+    const header = rows.shift();
+    const data = rows.map(r => ({
+      timestamp: new Date(r[0]),
+      source: r[1],
+      temp: parseFloat(r[2]),
+      hum: parseFloat(r[3] || "NaN")
+    }));
+    allData = data;
+    renderSensorCheckboxes();
+    updateChart();
+  } catch (e) {
+    alert("Nepodařilo se načíst data (CSV).");
+  }
+}
 
-        // Aktuální měsíc (history.csv)
-        const optCurrent = document.createElement('option');
-        optCurrent.value = 'data/history.csv';
-        optCurrent.textContent = 'Aktuální měsíc';
-        select.appendChild(optCurrent);
+// Checkboxy senzorů
+function renderSensorCheckboxes() {
+  const sensors = [...new Set(allData.map(d => d.source))];
+  sensorCheckboxes.innerHTML = "";
+  sensors.forEach(s => {
+    if (!activeSensors.size) activeSensors.add(s);
+    const cb = document.createElement("label");
+    cb.innerHTML = `<input type="checkbox" value="${s}" ${activeSensors.has(s) ? "checked":""}> ${s}`;
+    cb.querySelector("input").addEventListener("change", e => {
+      if (e.target.checked) activeSensors.add(s);
+      else activeSensors.delete(s);
+      updateChart();
+    });
+    sensorCheckboxes.appendChild(cb);
+  });
+}
 
-        // Historické soubory
-        files.forEach(f => {
-          const opt = document.createElement('option');
-          opt.value = 'data/' + f;
-          opt.textContent = f.replace('history_', '').replace('.csv', '');
-          select.appendChild(opt);
-        });
+// Filtrování podle rozsahu
+function filterByRange(data) {
+  let from, to = new Date();
+  if (rangeSelect.value === "today") {
+    from = new Date(); from.setHours(0,0,0,0);
+  } else if (rangeSelect.value === "week") {
+    from = new Date(); from.setDate(from.getDate()-7);
+  } else if (rangeSelect.value === "month") {
+    from = new Date(); from.setMonth(from.getMonth()-1);
+  } else if (rangeSelect.value === "custom") {
+    from = new Date(fromDate.value);
+    to = new Date(toDate.value);
+  } else {
+    return data;
+  }
+  return data.filter(d => d.timestamp >= from && d.timestamp <= to);
+}
 
-        select.value = 'data/history.csv';
-        loadCSV(select.value);
-        select.addEventListener('change', () => loadCSV(select.value));
-      } catch (err) {
-        alert('Nepodařilo se načíst seznam souborů (index.json)');
-        console.error(err);
-      }
-    }
+// Vykreslit graf
+function updateChart() {
+  if (chart) chart.destroy();
+  const filtered = filterByRange(allData).filter(d => activeSensors.has(d.source));
 
-    // Načíst CSV
-    async function loadCSV(path) {
-      try {
-        const resp = await fetch(path);
-        if (!resp.ok) throw new Error('HTTP ' + resp.status);
-        const text = await resp.text();
+  const datasets = [];
+  const colors = ["red","blue","green","orange","purple","cyan"];
 
-        const rows = text.trim().split('\n').slice(1); // přeskočíme hlavičku
-        const labels = [];
-        const temps = [];
-        const hums = [];
-
-        rows.forEach(line => {
-          const [timestamp, source, temp, hum] = line.split(',');
-          labels.push(timestamp);
-          temps.push(parseFloat(temp));
-          hums.push(parseFloat(hum || "NaN"));
-        });
-
-        updateChart(labels, temps, hums);
-      } catch (err) {
-        alert('Nepodařilo se načíst data (CSV)');
-        console.error(err);
-      }
-    }
-
-    // Aktualizovat graf
-    function updateChart(labels, temps, hums) {
-      const showTemp = document.getElementById('showTemp').checked;
-      const showHumidity = document.getElementById('showHumidity').checked;
-
-      if (chart) chart.destroy();
-      chart = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels,
-          datasets: [
-            {
-              label: 'Teplota (°C)',
-              data: temps,
-              borderColor: 'red',
-              yAxisID: 'y',
-              hidden: !showTemp
-            },
-            {
-              label: 'Vlhkost (%)',
-              data: hums,
-              borderColor: 'blue',
-              yAxisID: 'y1',
-              hidden: !showHumidity
-            }
-          ]
-        },
-        options: {
-          responsive: true,
-          interaction: { mode: 'index', intersect: false },
-          stacked: false,
-          scales: {
-            y: {
-              type: 'linear',
-              position: 'left',
-              title: { display: true, text: 'Teplota (°C)' }
-            },
-            y1: {
-              type: 'linear',
-              position: 'right',
-              title: { display: true, text: 'Vlhkost (%)' },
-              grid: { drawOnChartArea: false }
-            }
-          }
-        }
+  if (showTemp.checked) {
+    [...activeSensors].forEach((s,i) => {
+      datasets.push({
+        label: `${s} (°C)`,
+        data: filtered.filter(d => d.source===s).map(d => ({x:d.timestamp,y:d.temp})),
+        borderColor: colors[i%colors.length],
+        yAxisID: "y1"
       });
+    });
+  }
+  if (showHum.checked) {
+    [...activeSensors].forEach((s,i) => {
+      datasets.push({
+        label: `${s} (%)`,
+        data: filtered.filter(d => d.source===s).map(d => ({x:d.timestamp,y:d.hum})),
+        borderColor: colors[(i+3)%colors.length],
+        borderDash: [5,5],
+        yAxisID: "y2"
+      });
+    });
+  }
 
-      // Statistiky
-      const validTemps = temps.filter(t => !isNaN(t));
-      document.getElementById('minTemp').textContent = validTemps.length ? Math.min(...validTemps).toFixed(1) : '-';
-      document.getElementById('maxTemp').textContent = validTemps.length ? Math.max(...validTemps).toFixed(1) : '-';
+  chart = new Chart(document.getElementById("chart"), {
+    type:"line",
+    data:{datasets},
+    options:{
+      responsive:true,
+      scales:{
+        x:{type:"time", time:{unit:"hour"}},
+        y1:{type:"linear", position:"left", title:{display:true,text:"°C"}},
+        y2:{type:"linear", position:"right", title:{display:true,text:"%"}}
+      }
     }
+  });
 
-    document.getElementById('showTemp').addEventListener('change', () => loadCSV(document.getElementById('fileSelect').value));
-    document.getElementById('showHumidity').addEventListener('change', () => loadCSV(document.getElementById('fileSelect').value));
+  // Statistiky
+  const temps = filtered.map(d=>d.temp).filter(v=>!isNaN(v));
+  minTempEl.textContent = temps.length? Math.min(...temps).toFixed(1)+" °C":"–";
+  maxTempEl.textContent = temps.length? Math.max(...temps).toFixed(1)+" °C":"–";
+}
 
-    loadFileList();
-  </script>
+// Export CSV
+downloadCSV.addEventListener("click", () => {
+  const filtered = filterByRange(allData).filter(d => activeSensors.has(d.source));
+  let csv = "timestamp,source,temp_c,humidity_pct\n";
+  filtered.forEach(d=>{
+    csv+=`${d.timestamp.toISOString()},${d.source},${d.temp},${d.hum}\n`;
+  });
+  const blob=new Blob([csv],{type:"text/csv"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="export.csv";
+  a.click();
+});
+
+// Export PNG
+downloadPNG.addEventListener("click", () => {
+  const url = chart.toBase64Image();
+  const a=document.createElement("a");
+  a.href=url; a.download="chart.png"; a.click();
+});
+
+// Přepínání režimu
+toggleTheme.addEventListener("click", ()=>{
+  document.documentElement.classList.toggle("dark");
+});
+
+// Změny ovládacích prvků
+[fileSelect, rangeSelect, fromDate, toDate, showTemp, showHum].forEach(el=>{
+  el.addEventListener("change", updateChart);
+});
+
+rangeSelect.addEventListener("change", () => {
+  const custom = rangeSelect.value==="custom";
+  fromDate.classList.toggle("hidden", !custom);
+  toDate.classList.toggle("hidden", !custom);
+  updateChart();
+});
+
+// Start
+loadIndex().then(()=>loadCSV("history.csv"));
+</script>
+
 </body>
 </html>
