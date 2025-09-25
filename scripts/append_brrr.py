@@ -1,49 +1,60 @@
 import requests
 import csv
-from datetime import datetime
 import os
+from datetime import datetime
+
+# URL API pro jednotlivá čidla
+URLS = {
+    "UNI": "https://tmep.cz/vystup-json.php?id=4065&export_key=hgzwodurps",
+    "Venek": "https://tmep.cz/vystup-json.php?id=2764&export_key=vyi603xoku"
+}
 
 HISTORY_FILE = "docs/data/history.csv"
 
-# Číselná ID musí zůstat stejná kvůli grafu (4065 = UNI, 2764 = Venek)
-SENSORS = {
-    "4065": "https://brrr.cz/brrr.php?runpagephp=afterlogin&uloha=nacti_data_jen_posledni&ssid=Teplomer_UNI_2500&kod=49b5cf6b0607e62aa6d4cb10912cf107",
-    "2764": "https://brrr.cz/brrr.php?runpagephp=afterlogin&uloha=nacti_data_jen_posledni&ssid=Teplomer_UNI_320&kod=fb2255b580a412aed10172ab7d973c7f"
-}
-
 def fetch_data():
-    rows = []
-    for sid, url in SENSORS.items():
+    results = []
+    for source, url in URLS.items():
         try:
-            r = requests.get(url, timeout=15)
+            r = requests.get(url, timeout=10)
             r.raise_for_status()
             data = r.json()
+            if isinstance(data, list):
+                data = data[-1]  # poslední záznam
+            timestamp = data.get("cas") or data.get("time")
+            temp = data.get("teplota") or data.get("temp")
+            hum = data.get("vlhkost") or data.get("humidity")
 
-            ts = data.get("posledni_zaznam_cas")
-            temp = data.get("posledni_zaznam_teplota")
-            hum  = data.get("posledni_zaznam_vlhkost")
+            # Pokud čas není ve správném formátu, použij aktuální UTC
+            try:
+                dt = datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S")
+            except Exception:
+                dt = datetime.utcnow()
 
-            if ts and temp is not None:
-                # timestamp uložíme jako prostý string bez Z
-                rows.append([ts, sid, temp, hum if hum is not None else ""])
+            results.append({
+                "timestamp": dt.strftime("%Y-%m-%d %H:%M:%S"),
+                "source": source,
+                "temp_c": temp,
+                "humidity_pct": hum
+            })
         except Exception as e:
-            print(f"[WARN] {sid}: {e}")
-    return rows
+            print(f"Chyba při načítání {source}: {e}")
+    return results
 
-def append_history(rows):
-    newfile = not os.path.exists(HISTORY_FILE) or os.path.getsize(HISTORY_FILE) == 0
 
+def append_to_csv(rows):
+    file_exists = os.path.isfile(HISTORY_FILE)
     with open(HISTORY_FILE, "a", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
-        # přidáme hlavičku jen pokud je soubor nový/prázdný
-        if newfile:
-            writer.writerow(["timestamp", "source", "temp_c", "humidity_pct"])
-        writer.writerows(rows)
+        writer = csv.DictWriter(f, fieldnames=["timestamp", "source", "temp_c", "humidity_pct"])
+        if not file_exists:
+            writer.writeheader()
+        for row in rows:
+            writer.writerow(row)
+
 
 if __name__ == "__main__":
-    rows = fetch_data()
-    if rows:
-        append_history(rows)
-        print(f"Zapsáno {len(rows)} řádků do {HISTORY_FILE}")
+    new_rows = fetch_data()
+    if new_rows:
+        append_to_csv(new_rows)
+        print(f"Přidány {len(new_rows)} záznamy do {HISTORY_FILE}")
     else:
-        print("Žádná data k zápisu")
+        print("Žádná nová data")
