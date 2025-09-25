@@ -1,28 +1,19 @@
-name: Rotate history
+name: Rotate history file
 
 on:
   schedule:
-    - cron: "5 0 1 * *"   # 1. den v měsíci v 00:05 UTC
-  workflow_dispatch:
+    - cron: "5 0 1 * *"   # každý 1. den v měsíci v 00:05
+  workflow_dispatch:       # možnost ručního spuštění
 
 permissions:
   contents: write
 
 jobs:
-  build:
+  rotate:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-
-      - name: Prepare repo (fast-forward to main)
-        run: |
-          git config --global user.name "github-actions"
-          git config --global user.email "actions@github.com"
-          git fetch origin main
-          git reset --hard origin/main
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -30,13 +21,15 @@ jobs:
           python-version: "3.x"
 
       - name: Install dependencies
-        run: pip install requests pytz
+        run: pip install pytz
 
       - name: Run rotation script
         run: python3 scripts/rotate_history.py
 
       - name: Commit & push
         run: |
-          git add docs/data/history*.csv docs/data/index.json
-          git commit -m "Monthly rotate history.csv" || echo "No changes to commit"
+          git config --global user.name "github-actions"
+          git config --global user.email "actions@github.com"
+          git add docs/data/history.csv docs/data/history_*.csv
+          git commit -m "Rotate history files" || echo "No changes to commit"
           git push origin HEAD:main
