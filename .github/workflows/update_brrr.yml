@@ -3,7 +3,10 @@ name: Update brrr.cz data
 on:
   schedule:
     - cron: "*/10 * * * *"   # každých 10 minut
-  workflow_dispatch:
+  workflow_dispatch:          # možnost ručního spuštění
+
+permissions:
+  contents: write   # <-- důležité pro commit a push
 
 jobs:
   update:
@@ -18,11 +21,8 @@ jobs:
           python-version: "3.x"
 
       - name: Install dependencies
-        run: |
-          pip install requests
-          python3 -m pip show requests
-          python3 -c "import requests; print('requests OK, verze:', requests.__version__)"
-      
+        run: pip install requests
+
       - name: Append last values from brrr.cz
         run: python3 scripts/append_brrr.py
 
