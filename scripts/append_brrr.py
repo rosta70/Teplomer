@@ -1,60 +1,49 @@
 import requests
 import csv
-from datetime import datetime, timezone
+from datetime import datetime
 import os
-
-# URL pro API (UNI a Venek)
-URLS = {
-    "UNI": "https://brrr.cz/brrr.php?station=UNI&format=json",
-    "Venek": "https://brrr.cz/brrr.php?station=Venek&format=json"
-}
 
 HISTORY_FILE = "docs/data/history.csv"
 
+# Číselná ID musí zůstat stejná kvůli grafu (4065 = UNI, 2764 = Venek)
+SENSORS = {
+    "4065": "https://brrr.cz/brrr.php?runpagephp=afterlogin&uloha=nacti_data_jen_posledni&ssid=Teplomer_UNI_2500&kod=49b5cf6b0607e62aa6d4cb10912cf107",
+    "2764": "https://brrr.cz/brrr.php?runpagephp=afterlogin&uloha=nacti_data_jen_posledni&ssid=Teplomer_UNI_320&kod=fb2255b580a412aed10172ab7d973c7f"
+}
+
 def fetch_data():
-    results = []
-    for source, url in URLS.items():
+    rows = []
+    for sid, url in SENSORS.items():
         try:
-            r = requests.get(url, timeout=10)
+            r = requests.get(url, timeout=15)
+            r.raise_for_status()
             data = r.json()
-            # vezmu poslední záznam
-            if isinstance(data, list) and len(data) > 0:
-                rec = data[-1]
-                cas = rec.get("cas") or rec.get("time") or rec.get("timestamp")
-                temp = rec.get("teplota") or rec.get("temp")
-                hum = rec.get("vlhkost") or rec.get("humidity")
 
-                # čas převedu na ISO bez Z
-                if cas:
-                    try:
-                        dt = datetime.fromisoformat(cas.replace("Z", "+00:00"))
-                        cas = dt.replace(tzinfo=timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
-                    except Exception:
-                        cas = str(cas)
+            ts = data.get("posledni_zaznam_cas")
+            temp = data.get("posledni_zaznam_teplota")
+            hum  = data.get("posledni_zaznam_vlhkost")
 
-                results.append((cas, source, temp, hum))
+            if ts and temp is not None:
+                # timestamp uložíme jako prostý string bez Z
+                rows.append([ts, sid, temp, hum if hum is not None else ""])
         except Exception as e:
-            print(f"Chyba při čtení z {url}: {e}")
-    return results
+            print(f"[WARN] {sid}: {e}")
+    return rows
 
 def append_history(rows):
-    file_exists = os.path.exists(HISTORY_FILE)
+    newfile = not os.path.exists(HISTORY_FILE) or os.path.getsize(HISTORY_FILE) == 0
 
     with open(HISTORY_FILE, "a", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
-
-        # pokud soubor neexistuje, přidáme hlavičku
-        if not file_exists or os.path.getsize(HISTORY_FILE) == 0:
+        # přidáme hlavičku jen pokud je soubor nový/prázdný
+        if newfile:
             writer.writerow(["timestamp", "source", "temp_c", "humidity_pct"])
-
-        # zapíšu všechny řádky bez kontroly duplicity
-        for row in rows:
-            writer.writerow(row)
+        writer.writerows(rows)
 
 if __name__ == "__main__":
-    data = fetch_data()
-    if data:
-        append_history(data)
-        print(f"Zapsáno {len(data)} záznamů do {HISTORY_FILE}")
+    rows = fetch_data()
+    if rows:
+        append_history(rows)
+        print(f"Zapsáno {len(rows)} řádků do {HISTORY_FILE}")
     else:
         print("Žádná data k zápisu")
