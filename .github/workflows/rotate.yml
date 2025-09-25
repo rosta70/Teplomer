@@ -30,7 +30,7 @@ jobs:
           python-version: "3.x"
 
       - name: Run rotation script
-        run: python3 docs/data/rotate_history.py
+         run: python3 scripts/rotate_history.py
 
       - name: Commit & push
         run: |
