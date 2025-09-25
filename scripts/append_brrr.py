@@ -31,7 +31,7 @@ def fetch_data():
                 dt = datetime.utcnow()
 
             results.append({
-                "timestamp": dt.strftime("%Y-%m-%d %H:%M:%S"),
+                "timestamp": dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "source": source,
                 "temp_c": temp,
                 "humidity_pct": hum
