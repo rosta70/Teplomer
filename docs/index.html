@@ -8,54 +8,29 @@
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.umd.min.js"></script>
   <style>
-    :root {
-      --bg: #0f1115;
-      --card: #171a21;
-      --muted: #9aa4b2;
-      --text: #e7edf4;
-      --accent: #2dd4bf;
-      --danger: #f43f5e;
-      --info: #60a5fa;
-    }
-    html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Helvetica,Arial;}
-    header{display:flex;align-items:center;gap:.6rem;padding:14px 18px;border-bottom:1px solid #222;}
-    header .logo{width:22px;height:22px;background:radial-gradient(circle at 30% 30%,#ffd166,#ff9900);border-radius:50%;}
-    header h1{font-size:1.05rem;margin:0;font-weight:700}
-    .wrap{max-width:1100px;margin:0 auto;padding:14px}
-    .controls{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;margin-bottom:.8rem}
-    .controls .group{display:flex;gap:.6rem;align-items:center;background:var(--card);padding:8px 10px;border-radius:10px}
-    label{display:inline-flex;gap:.35rem;align-items:center;cursor:pointer;font-size:.95rem}
-    input[type="checkbox"]{width:18px;height:18px;accent-color:var(--accent)}
-    select,button{background:#111722;color:var(--text);border:1px solid #223047;border-radius:10px;padding:8px 10px;font-size:.95rem}
-    button.icon{display:inline-flex;gap:.4rem;align-items:center}
-    button#btnCsv{background:#0b3b73;border-color:#0b3b73}
-    button#btnPng{background:#0b5d48;border-color:#0b5d48}
-    button#btnReset{background:#5a3b09;border-color:#5a3b09}
-    .stats{display:flex;gap:.8rem;flex-wrap:wrap;margin:.6rem 0}
-    .stat{flex:1 1 280px;background:var(--card);border-radius:12px;padding:12px 14px}
-    .stat .ttl{font-size:.9rem;color:var(--muted);margin-bottom:.25rem}
-    .stat .val{font-size:1.6rem;font-weight:800}
-    .stat .sub{margin-top:.15rem;color:var(--muted);font-size:.88rem}
-    .chart-card{background:#fff;border-radius:12px;padding:10px}
-    canvas{display:block;width:100%;height:420px;max-height:70vh}
-    .bad{color:#ff8484}
-    #rangeBadge{font-size:.85rem;color:var(--muted)}
-    .sensorPills{display:flex;flex-wrap:wrap;gap:.5rem}
-    .pill{background:#0d1320;border:1px solid #263246;color:#cfe7ff;padding:4px 10px;border-radius:999px;font-size:.85rem}
-    @media (max-width:700px){
-      .controls .group{width:100%;justify-content:space-between}
-      canvas{height:360px}
-    }
+    body { font-family: Arial, sans-serif; background: #f4f6f9; margin:0; padding:0; }
+    header { background:#334155; color:white; padding:10px 16px; }
+    h1 { margin:0; font-size:1.2rem; }
+    .wrap { max-width:1100px; margin:0 auto; padding:12px; }
+    .controls { display:flex; flex-wrap:wrap; gap:.6rem; margin-bottom:.8rem; }
+    .group { display:flex; gap:.6rem; align-items:center; background:#fff; padding:6px 10px; border-radius:8px; border:1px solid #ccc; }
+    label { display:flex; align-items:center; gap:.35rem; font-size:.9rem; }
+    input[type="checkbox"] { width:18px; height:18px; }
+    select,input,button { font-size:.9rem; padding:6px 8px; }
+    #customRange { display:none; gap:.6rem; }
+    .stats { display:flex; flex-wrap:wrap; gap:.6rem; margin:.8rem 0; }
+    .stat { flex:1 1 260px; background:#fff; padding:10px; border-radius:8px; border:1px solid #ccc; }
+    .stat .ttl { color:#64748b; font-size:.85rem; margin-bottom:4px; }
+    .stat .val { font-size:1.2rem; font-weight:bold; }
+    .stat .sub { font-size:.8rem; color:#64748b; }
+    .chart-card { background:#fff; padding:10px; border-radius:8px; border:1px solid #ccc; }
+    canvas { width:100%; height:420px; }
+    #rangeBadge { font-size:.85rem; color:#475569; }
   </style>
 </head>
 <body>
-  <header>
-    <div class="logo"></div>
-    <h1>Meteo archiv</h1>
-  </header>
-
+  <header><h1>Meteo archiv</h1></header>
   <div class="wrap">
-    <!-- Ovládání -->
     <div class="controls">
       <div class="group">
         <label><input id="chkTemp" type="checkbox" checked> Teplota (°C)</label>
@@ -68,266 +43,95 @@
           <option value="week">Týden</option>
           <option value="month">Měsíc</option>
           <option value="all">Vše</option>
+          <option value="custom">Vlastní…</option>
         </select>
-
         <select id="selFile"></select>
-
-        <button id="btnReset" class="icon" title="Reset zoom"><span>↺</span> Reset</button>
-        <button id="btnCsv" class="icon" title="Stáhnout CSV">📄 CSV</button>
-        <button id="btnPng" class="icon" title="Stáhnout PNG graf">🖼 PNG</button>
+        <button id="btnReset">Reset zoom</button>
       </div>
+    </div>
+
+    <div class="controls" id="customRange">
+      <label>Od: <input type="datetime-local" id="fromDate"></label>
+      <label>Do: <input type="datetime-local" id="toDate"></label>
+      <button id="applyRange" type="button">Použít</button>
     </div>
 
     <div class="controls">
-      <div id="sensorBox" class="sensorPills"></div>
+      <div id="sensorBox"></div>
       <span id="rangeBadge"></span>
     </div>
 
-    <!-- Stat karty -->
     <div class="stats">
-      <div class="stat">
-        <div class="ttl">Min. teplota</div>
-        <div class="val" id="minVal">–</div>
-        <div class="sub" id="minInfo">–</div>
-      </div>
-      <div class="stat">
-        <div class="ttl">Max. teplota</div>
-        <div class="val" id="maxVal">–</div>
-        <div class="sub" id="maxInfo">–</div>
-      </div>
+      <div class="stat"><div class="ttl">Min. teplota</div><div class="val" id="minVal">–</div><div class="sub" id="minInfo">–</div></div>
+      <div class="stat"><div class="ttl">Max. teplota</div><div class="val" id="maxVal">–</div><div class="sub" id="maxInfo">–</div></div>
     </div>
 
-    <!-- Graf -->
     <div class="chart-card"><canvas id="chart"></canvas></div>
   </div>
 
-  <script>
-    // --- Pomocné ---
-    const SENSOR_LABEL = { "4065": "UNI", "2764": "Venek" };
+<script>
+const SENSOR_LABEL = { "4065":"UNI", "2764":"Venek" };
+const $ = s=>document.querySelector(s);
+let allRows=[],visibleSensors=new Set(),chart;
 
-    const $ = sel => document.querySelector(sel);
-    const fmt = d => new Date(d).toLocaleString();
+async function fetchJSON(paths){for(const p of paths){try{const r=await fetch(p,{cache:"no-store"});if(r.ok)return await r.json();}catch{}}throw new Error("index.json nenalezen");}
+async function fetchText(paths){for(const p of paths){try{const r=await fetch(p,{cache:"no-store"});if(r.ok)return await r.text();}catch{}}throw new Error("CSV nenalezeno");}
 
-    async function fetchJSON(paths) {
-      for (const p of paths) {
-        try {
-          const r = await fetch(p, { cache: "no-store" });
-          if (r.ok) return await r.json();
-        } catch {}
-      }
-      throw new Error("index.json nenalezen (zkoušeno: " + paths.join(", ") + ")");
-    }
-    async function fetchText(paths) {
-      for (const p of paths) {
-        try {
-          const r = await fetch(p, { cache: "no-store" });
-          if (r.ok) return await r.text();
-        } catch {}
-      }
-      throw new Error("CSV nenalezeno (zkoušeno: " + paths.join(", ") + ")");
-    }
+async function loadIndex(){
+  const files=await fetchJSON(["data/index.json","docs/data/index.json"]);
+  const sel=$("#selFile"); sel.innerHTML="";
+  files.forEach(f=>{const o=document.createElement("option");o.value=f;o.textContent=f;sel.appendChild(o);});
+  if(files.includes("history.csv")) sel.value="history.csv";
+  await loadCSV();
+}
 
-    // --- Stav ---
-    let allRows = [];      // původní data (vše)
-    let visibleSensors = new Set(); // viditelné senzory
-    let chart;
+async function loadCSV(){
+  const f=$("#selFile").value;
+  const text=await fetchText([`data/${f}`,`docs/data/${f}`]);
+  const lines=text.trim().split(/\r?\n/);
+  let start=0;if(lines[0].toLowerCase().includes("timestamp"))start=1;
+  allRows=[];for(let i=start;i<lines.length;i++){const [ts,id,t,h]=lines[i].split(",");if(!ts||!id)continue;const time=new Date(ts);allRows.push({time,id,temp:parseFloat(t),hum:parseFloat(h)});}
+  const ids=[...new Set(allRows.map(r=>r.id))].sort();visibleSensors=new Set(ids);renderSensorToggles(ids);update();
+}
 
-    // --- Načtení seznamu souborů ---
-    async function loadIndex() {
-      const files = await fetchJSON(["data/index.json","docs/data/index.json"]);
-      const sel = $("#selFile");
-      sel.innerHTML = "";
-      files.forEach(f => {
-        const o = document.createElement("option");
-        o.value = f; o.textContent = f;
-        sel.appendChild(o);
-      });
-      // preferuj history.csv, když existuje
-      if (files.includes("history.csv")) sel.value = "history.csv";
-      await loadCSV();
-    }
+function renderSensorToggles(ids){
+  const box=$("#sensorBox");box.innerHTML="";
+  ids.forEach(id=>{const l=document.createElement("label");l.innerHTML=`<input type="checkbox" data-id="${id}" checked> ${SENSOR_LABEL[id]??id}`;l.querySelector("input").addEventListener("change",e=>{if(e.target.checked)visibleSensors.add(id);else visibleSensors.delete(id);update();});box.appendChild(l);});
+}
 
-    // --- Načtení CSV ---
-    async function loadCSV() {
-      const f = $("#selFile").value;
-      const text = await fetchText([`data/${f}`,`docs/data/${f}`]);
+function filterByRange(rows){
+  const range=$("#selRange").value;
+  const now=new Date();let from,to=now;
+  if(range==="today"){from=new Date(now.getFullYear(),now.getMonth(),now.getDate());}
+  else if(range==="week"){from=new Date(now.getTime()-7*864e5);}
+  else if(range==="month"){from=new Date(now.getTime()-31*864e5);}
+  else if(range==="custom"){
+    const fromVal=$("#fromDate").value,toVal=$("#toDate").value;
+    if(fromVal&&toVal){from=new Date(fromVal);to=new Date(toVal);} }
+  const out=rows.filter(r=>(!from||r.time>=from)&&(!to||r.time<=to));
+  $("#rangeBadge").textContent=`Zobrazeno: ${from?from.toLocaleString():"–"} — ${to?to.toLocaleString():"–"}`;
+  return out;
+}
 
-      const lines = text.trim().split(/\r?\n/);
-      // Podpora s/bez hlavičky
-      let start = 0;
-      if (lines[0].toLowerCase().includes("timestamp")) start = 1;
+function update(){
+  const rows=filterByRange(allRows).filter(r=>visibleSensors.has(r.id));
+  const tRows=rows.filter(r=>Number.isFinite(r.temp));
+  if(tRows.length){const min=tRows.reduce((a,b)=>b.temp<a.temp?b:a);const max=tRows.reduce((a,b)=>b.temp>a.temp?b:a);$("#minVal").textContent=`${min.temp.toFixed(2)} °C`;$("#maxVal").textContent=`${max.temp.toFixed(2)} °C`;$("#minInfo").textContent=`${SENSOR_LABEL[min.id]??min.id}, ${min.time.toLocaleString()}`;$("#maxInfo").textContent=`${SENSOR_LABEL[max.id]??max.id}, ${max.time.toLocaleString()}`;}
+  const ids=[...new Set(rows.map(r=>r.id))].sort();const datasets=[];ids.forEach(id=>{const srows=rows.filter(r=>r.id===id);datasets.push({label:`${SENSOR_LABEL[id]??id} (°C)`,data:srows.map(r=>({x:r.time,y:r.temp})),yAxisID:"yT",borderColor:id==="4065"?"#ef4444":"#3b82f6",tension:.2,pointRadius:0});datasets.push({label:`${SENSOR_LABEL[id]??id} (%)`,data:srows.map(r=>({x:r.time,y:r.hum})),yAxisID:"yH",borderColor:id==="4065"?"#f97316":"#22d3ee",tension:.2,pointRadius:0,borderDash:[6,4]});});drawChart(datasets);
+}
 
-      allRows = [];
-      for (let i = start; i < lines.length; i++) {
-        const [ts, id, t, h] = lines[i].split(",");
-        if (!ts || !id) continue;
-        const time = new Date(ts);
-        const temp = parseFloat(t);
-        const hum  = parseFloat(h);
-        if (Number.isNaN(time.getTime())) continue;
-        allRows.push({ time, id, temp, hum });
-      }
+function drawChart(datasets){
+  const ctx=$("#chart").getContext("2d");if(chart)chart.destroy();
+  chart=new Chart(ctx,{type:"line",data:{datasets},options:{responsive:true,interaction:{mode:"nearest",axis:"x",intersect:false},scales:{x:{type:"time",time:{tooltipFormat:"dd.MM.yyyy HH:mm"},ticks:{autoSkip:true,maxTicksLimit:7}},yT:{title:{display:true,text:"°C"}},yH:{position:"right",title:{display:true,text:"%"},suggestedMin:0,suggestedMax:100}},plugins:{zoom:{zoom:{wheel:{enabled:true},pinch:{enabled:true},mode:"x"},pan:{enabled:true,mode:"x"}}}});}
 
-      // Inicializuj viditelné senzory
-      const ids = [...new Set(allRows.map(r => r.id))].sort();
-      visibleSensors = new Set(ids);
-      renderSensorToggles(ids);
+$("#selFile").addEventListener("change", loadCSV);
+$("#selRange").addEventListener("change", e=>{if(e.target.value==="custom")$("#customRange").style.display="flex";else $("#customRange").style.display="none";update();});
+$("#applyRange").addEventListener("click", update);
+$("#chkTemp").addEventListener("change", update);
+$("#chkHum").addEventListener("change", update);
+$("#btnReset").addEventListener("click", ()=>chart&&chart.resetZoom());
 
-      update();
-    }
-
-    // --- Přepínače senzorů (pills) ---
-    function renderSensorToggles(ids){
-      const box = $("#sensorBox");
-      box.innerHTML = "";
-      ids.forEach(id => {
-        const pill = document.createElement("label");
-        pill.className = "pill";
-        pill.innerHTML = `<input type="checkbox" data-id="${id}" checked style="accent-color:#2dd4bf;margin-right:6px"> ${SENSOR_LABEL[id] ?? id}`;
-        pill.querySelector("input").addEventListener("change", (e)=>{
-          if (e.target.checked) visibleSensors.add(id);
-          else visibleSensors.delete(id);
-          update();
-        });
-        box.appendChild(pill);
-      });
-    }
-
-    // --- Filtrování dle rozsahu ---
-    function filterByRange(rows){
-      const range = $("#selRange").value;
-      if (range === "all") return rows;
-
-      const now = new Date();
-      let from;
-      if (range === "today") from = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      else if (range === "week") from = new Date(now.getTime() - 7*24*3600*1000);
-      else if (range === "month") from = new Date(now.getTime() - 31*24*3600*1000);
-
-      const out = rows.filter(r => r.time >= from);
-      const badge = $("#rangeBadge");
-      const toStr = now.toLocaleString();
-      const fromStr = from ? from.toLocaleString() : "—";
-      badge.textContent = `Zobrazeno: ${fromStr} — ${toStr}`;
-      return out;
-    }
-
-    // --- Přepočet statistik + render grafu ---
-    function update(){
-      const showTemp = $("#chkTemp").checked;
-      const showHum  = $("#chkHum").checked;
-
-      // filtrace
-      const rows = filterByRange(allRows).filter(r => visibleSensors.has(r.id));
-
-      // Statistika jen z teploty a z viditelných senzorů
-      const tRows = rows.filter(r => Number.isFinite(r.temp));
-      if (tRows.length) {
-        const min = tRows.reduce((a,b)=> b.temp < a.temp ? b : a);
-        const max = tRows.reduce((a,b)=> b.temp > a.temp ? b : a);
-        $("#minVal").textContent = `${min.temp.toFixed(2)} °C`;
-        $("#maxVal").textContent = `${max.temp.toFixed(2)} °C`;
-        $("#minInfo").textContent = `${SENSOR_LABEL[min.id] ?? min.id}, ${fmt(min.time)}`;
-        $("#maxInfo").textContent = `${SENSOR_LABEL[max.id] ?? max.id}, ${fmt(max.time)}`;
-      } else {
-        $("#minVal").textContent = "–"; $("#maxVal").textContent = "–";
-        $("#minInfo").textContent = "–"; $("#maxInfo").textContent = "–";
-      }
-
-      // dataset
-      const ids = [...new Set(rows.map(r=>r.id))].sort();
-      const datasets = [];
-      const colorFor = id => id === "4065" ? "#ef4444" : "#3b82f6"; // UNI=červená, Venek=modrá
-
-      ids.forEach(id=>{
-        const srows = rows.filter(r=>r.id===id);
-        if (showTemp) {
-          datasets.push({
-            label: `${SENSOR_LABEL[id] ?? id} (°C)`,
-            data: srows.map(r=>({x:r.time,y:r.temp})),
-            borderColor: colorFor(id),
-            backgroundColor: "transparent",
-            yAxisID: "yT",
-            tension: .2,
-            pointRadius: 0,
-            borderWidth: 2
-          });
-        }
-        if (showHum) {
-          datasets.push({
-            label: `${SENSOR_LABEL[id] ?? id} (%)`,
-            data: srows.map(r=>({x:r.time,y:r.hum})),
-            borderColor: id === "4065" ? "#f97316" : "#22d3ee",
-            backgroundColor: "transparent",
-            yAxisID: "yH",
-            tension: .2,
-            pointRadius: 0,
-            borderDash: [6,4],
-            borderWidth: 2
-          });
-        }
-      });
-
-      drawChart(datasets);
-    }
-
-    function drawChart(datasets){
-      const ctx = $("#chart").getContext("2d");
-      if (chart) chart.destroy();
-
-      chart = new Chart(ctx, {
-        type: "line",
-        data: { datasets },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          animation: false,
-          interaction: { mode: "nearest", axis: "x", intersect: false },
-          scales: {
-            x: {
-              type: "time",
-              time: { tooltipFormat: "dd.MM.yyyy HH:mm", displayFormats: { hour: "HH:mm", day: "d.M." } },
-              ticks: { autoSkip: true, maxTicksLimit: 7 },
-              grid: { color: "#eee2", drawBorder:false }
-            },
-            yT: { position: "left", title:{display:true,text:"°C"}, grid:{color:"#eee2"}, suggestedMin: null, suggestedMax: null },
-            yH: { position: "right", title:{display:true,text:"%"}, grid:{drawOnChartArea:false}, suggestedMin: 0, suggestedMax: 100 }
-          },
-          plugins: {
-            legend: { labels: { color: "#111", font:{weight:"600"} } },
-            zoom: {
-              zoom: { wheel:{enabled:true}, pinch:{enabled:true}, mode:"x" },
-              pan:  { enabled:true, mode:"x" }
-            }
-          }
-        }
-      });
-    }
-
-    // --- Akce ---
-    $("#selFile").addEventListener("change", loadCSV);
-    $("#selRange").addEventListener("change", update);
-    $("#chkTemp").addEventListener("change", update);
-    $("#chkHum").addEventListener("change", update);
-
-    $("#btnReset").addEventListener("click", ()=> chart && chart.resetZoom());
-    $("#btnCsv").addEventListener("click", ()=> {
-      const f = $("#selFile").value;
-      // preferuj /data - když neexistuje, vezmi /docs/data
-      fetch(`data/${f}`,{method:"HEAD"}).then(r=>{
-        location.href = r.ok ? `data/${f}` : `docs/data/${f}`;
-      }).catch(()=> location.href = `data/${f}`);
-    });
-    $("#btnPng").addEventListener("click", ()=>{
-      const a = document.createElement("a");
-      a.href = chart.toBase64Image(); a.download = "graf.png"; a.click();
-    });
-
-    // start
-    loadIndex().catch(err=>{
-      console.error(err);
-      alert("Nepodařilo se načíst data (index.json). Zkontroluj, že existuje v `docs/data/`.");
-    });
-  </script>
+loadIndex().catch(err=>{console.error(err);alert("Nepodařilo se načíst data (index.json).");});
+</script>
 </body>
 </html>
