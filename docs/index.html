@@ -403,9 +403,15 @@
       drawChart(datasets);
     }
 
-    function drawChart(datasets){
+function drawChart(datasets){
       const ctx = $("#chart").getContext("2d");
       if (chart) chart.destroy();
+
+      // Pevné nastavení pro mobilní a desktopové zobrazení
+      const isMobile = window.innerWidth <= 700;
+      const ticksLimit = isMobile ? 5 : 7; // Méně popisků na ose X na mobilu
+      const legendFontSize = isMobile ? 10 : 12; // Menší písmo legendy na mobilu
+      const titleFontSize = isMobile ? 10 : 12; // Menší písmo popisků os na mobilu
 
       chart = new Chart(ctx, {
         type: "line",
@@ -415,21 +421,56 @@
           maintainAspectRatio: false,
           animation: false,
           interaction: { mode: "nearest", axis: "x", intersect: false },
+          layout: {
+            padding: { top: 10, bottom: isMobile ? 0 : 10 } // Trochu méně prostoru pod grafem na mobilu
+          },
           scales: {
             x: {
               type: "time",
               time: { tooltipFormat: "dd.MM.yyyy HH:mm", displayFormats: { hour: "HH:mm", day: "d.M." } },
-              ticks: { autoSkip: true, maxTicksLimit: 7 },
+              // ÚPRAVA: Omezení počtu popisků na ose X pro lepší čitelnost na mobilu
+              ticks: { 
+                autoSkip: true, 
+                maxTicksLimit: ticksLimit,
+                color: "#4a4a4a", // Tmavší barva pro lepší kontrast
+                font: { size: titleFontSize }
+              },
               grid: { color: "#eee2", drawBorder:false }
             },
-            yT: { position: "left", title:{display:true,text:"°C"}, grid:{color:"#eee2"}, suggestedMin: null, suggestedMax: null },
-            yH: { position: "right", title:{display:true,text:"%"}, grid:{drawOnChartArea:false}, suggestedMin: 0, suggestedMax: 100 }
+            yT: { 
+              position: "left", 
+              title:{display:true,text:"°C", font: { size: titleFontSize }}, 
+              grid:{color:"#eee2"}, 
+              suggestedMin: null, suggestedMax: null,
+              // ÚPRAVA: Zvýraznění osy pro Teplotu
+              ticks: { color: "#4a4a4a", font: { size: titleFontSize } }
+            },
+            yH: { 
+              position: "right", 
+              title:{display:true,text:"%", font: { size: titleFontSize }}, 
+              grid:{drawOnChartArea:false}, 
+              suggestedMin: 0, suggestedMax: 100,
+              // ÚPRAVA: Zvýraznění osy pro Vlhkost
+              ticks: { color: "#4a4a4a", font: { size: titleFontSize } }
+            }
           },
           plugins: {
-            legend: { labels: { color: "#111", font:{weight:"600"} } },
+            legend: { 
+              labels: { 
+                color: "#111", 
+                font:{ weight:"600", size: legendFontSize },
+                boxWidth: isMobile ? 10 : 40, // Menší boxy legendy na mobilu
+                padding: 10 // Menší mezery
+              } 
+            },
+            tooltip: {
+                titleFont: { size: 12 },
+                bodyFont: { size: 11 },
+            },
             zoom: {
-              zoom: { wheel:{enabled:true}, pinch:{enabled:true}, mode:"x" },
-              pan:  { enabled:true, mode:"x" }
+              // Zvýšená citlivost pro snazší přiblížení na dotykových zařízeních
+              zoom: { wheel:{enabled:true}, pinch:{enabled:true, threshold: 0.1}, mode:"x" },
+              pan:  { enabled:true, mode:"x", threshold: 5 } // Mírně vyšší threshold pro zabránění nechtěnému posunu
             }
           }
         }
