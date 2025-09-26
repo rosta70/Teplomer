@@ -33,6 +33,11 @@ def fill_yesterday():
             j = r.json()
 
             for rec in j:
+                # NOVÁ KONTROLA: Zkontroluj, zda je rec slovník (dictionary)
+                if not isinstance(rec, dict):
+                    print(f"Varování: Přeskočen neočekávaný typ dat ({type(rec)}) pro senzor {name}.")
+                    continue 
+                
                 cas = rec.get("cas")
                 if not cas:
                     continue
