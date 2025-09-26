@@ -26,14 +26,14 @@
     .controls .group{display:flex;gap:.6rem;align-items:center;background:var(--card);padding:8px 10px;border-radius:10px}
     label{display:inline-flex;gap:.35rem;align-items:center;cursor:pointer;font-size:.95rem}
     input[type="checkbox"]{width:18px;height:18px;accent-color:var(--accent)}
-    /* UPRAVENO: Přidán input[type="datetime-local"] pro stylování polí pro vlastní rozsah */
     select,button,input[type="datetime-local"]{background:#111722;color:var(--text);border:1px solid #223047;border-radius:10px;padding:8px 10px;font-size:.95rem}
     button.icon{display:inline-flex;gap:.4rem;align-items:center}
     button#btnCsv{background:#0b3b73;border-color:#0b3b73}
     button#btnPng{background:#0b5d48;border-color:#0b5d48}
     button#btnReset{background:#5a3b09;border-color:#5a3b09}
     .stats{display:flex;gap:.8rem;flex-wrap:wrap;margin:.6rem 0}
-    .stat{flex:1 1 280px;background:var(--card);border-radius:12px;padding:12px 14px}
+    /* Vylepšeno: Základní velikost karty (pro desktop) */
+    .stat{flex:1 1 200px;background:var(--card);border-radius:12px;padding:12px 14px} 
     .stat .ttl{font-size:.9rem;color:var(--muted);margin-bottom:.25rem}
     .stat .val{font-size:1.6rem;font-weight:800}
     .stat .sub{margin-top:.15rem;color:var(--muted);font-size:.88rem}
@@ -43,8 +43,20 @@
     #rangeBadge{font-size:.85rem;color:var(--muted)}
     .sensorPills{display:flex;flex-wrap:wrap;gap:.5rem}
     .pill{background:#0d1320;border:1px solid #263246;color:#cfe7ff;padding:4px 10px;border-radius:999px;font-size:.85rem}
+    
+    /* RESPONZIVNÍ ÚPRAVY PRO MOBILY */
     @media (max-width:700px){
-      .controls .group{width:100%;justify-content:space-between}
+      .controls .group{width:100%;justify-content:space-between; flex-wrap: wrap;} 
+      
+      /* NOVÉ: Zajišťuje, že se tlačítka a selecty v druhé skupině zalamují, ale neberou 100% šířky */
+      .controls .group:nth-child(2) > * {
+          flex-grow: 1; 
+          min-width: 120px; 
+      }
+      
+      /* NOVÉ: Statistiky se zalamují do dvou sloupců pro lepší využití prostoru */
+      .stat{flex:1 1 calc(50% - 0.5rem);} 
+
       /* ÚPRAVA: Aby se ovládání vlastního rozsahu zalamovalo na menších obrazovkách */
       #customRangeGroup{flex-wrap:wrap}
       #customRangeGroup input{flex:1 1 45%;min-width:140px} 
@@ -424,7 +436,7 @@
       });
     }
 
-    // --- Akce (UPRAVENO pro vlastní rozsah) ---
+    // --- Akce ---
     $("#selFile").addEventListener("change", loadCSV);
     
     // Sloučíme akce pro selRange
