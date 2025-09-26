@@ -7,10 +7,11 @@ from pathlib import Path
 DATA_FILE = Path("docs/data/history.csv")
 tz = pytz.timezone("Europe/Prague")
 
+# NOVÉ ADRESY S KOREKTNÍ ULOHA=nacti_data pro stahování historie
 SENSORS = {
     "UNI": "https://brrr.cz/brrr.php?runpagephp=afterlogin&uloha=nacti_data&ssid=Teplomer_UNI_2500&kod=49b5cf6b0607e62aa6d4cb10912cf107",
     "Venek": "https://brrr.cz/brrr.php?runpagephp=afterlogin&uloha=nacti_data&ssid=Teplomer_UNI_320&kod=fb2255b580a412aed10172ab7d973c7f",
-    "Doma": "https://brrr.cz/brrr.php?runpagephp=afterlogin&uloha=nacti_data&ssid=Teplomer_UNI_318&kod=b2038caff21963d4f356aca3ea30387b"
+    "Doma": "https://brrr.cz/brrr.php?runpagephp=afterlogin&uloha=nacti_data&ssid=Teplomer_UNI_318&kod=b2038caff21963d4f356aca3ea30387b" 
 }
 
 def ensure_header():
@@ -26,18 +27,26 @@ def fill_yesterday():
     ensure_header()
     with open(DATA_FILE, "a", newline="") as f:
         writer = csv.writer(f)
+        total_records = 0 # Počítadlo pro informativní výpis
+        
         for name, base_url in SENSORS.items():
             url = f"{base_url}&od={yesterday}&do={today}"
+            print(f"Stahuji historická data pro {name} z: {url}") # Přidáno pro debugging
+            
             r = requests.get(url, timeout=15)
             r.raise_for_status()
             j = r.json()
 
+            # Zde očekáváme seznam, protože používáme uloha=nacti_data
+            if not isinstance(j, list):
+                print(f"CHYBA: API pro {name} nevrátilo seznam dat. Přeskočeno.")
+                continue
+
             for rec in j:
-                # NOVÁ KONTROLA: Zkontroluj, zda je rec slovník (dictionary)
+                # Kontrola přidána v předchozím kroku - zajistí, že je to slovník
                 if not isinstance(rec, dict):
-                    print(f"Varování: Přeskočen neočekávaný typ dat ({type(rec)}) pro senzor {name}.")
                     continue 
-                
+
                 cas = rec.get("cas")
                 if not cas:
                     continue
@@ -50,6 +59,10 @@ def fill_yesterday():
                 temp = rec.get("teplota")
                 hum = rec.get("vlhkost")
                 writer.writerow([ts, name, temp, hum])
+                total_records += 1
+
+        print(f"Doplněno {total_records} historických záznamů.")
+
 
 if __name__ == "__main__":
     fill_yesterday()
