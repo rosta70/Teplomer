@@ -94,15 +94,34 @@
 
     <div class="stats">
       <div class="stat">
-        <div class="ttl">Min. teplota</div>
-        <div class="val" id="minVal">–</div>
-        <div class="sub" id="minInfo">–</div>
+        <div class="ttl">Min. teplota 🥶</div>
+        <div class="val" id="minTVal">–</div>
+        <div class="sub" id="minTInfo">–</div>
       </div>
       <div class="stat">
-        <div class="ttl">Max. teplota</div>
-        <div class="val" id="maxVal">–</div>
-        <div class="sub" id="maxInfo">–</div>
+        <div class="ttl">Max. teplota 🔥</div>
+        <div class="val" id="maxTVal">–</div>
+        <div class="sub" id="maxTInfo">–</div>
       </div>
+      <div class="stat">
+        <div class="ttl">Průměrná teplota 🌡️</div>
+        <div class="val" id="avgTVal">–</div>
+        <div class="sub" id="rangeTInfo">–</div> </div>
+      
+      <div class="stat">
+        <div class="ttl">Min. vlhkost 💧</div>
+        <div class="val" id="minHVal">–</div>
+        <div class="sub" id="minHInfo">–</div>
+      </div>
+      <div class="stat">
+        <div class="ttl">Max. vlhkost 💦</div>
+        <div class="val" id="maxHVal">–</div>
+        <div class="sub" id="maxHInfo">–</div>
+      </div>
+      <div class="stat">
+        <div class="ttl">Průměrná vlhkost 💨</div>
+        <div class="val" id="avgHVal">–</div>
+        <div class="sub" id="rangeHInfo">–</div> </div>
     </div>
 
     <div class="chart-card"><canvas id="chart"></canvas></div>
@@ -115,7 +134,7 @@
     const $ = sel => document.querySelector(sel);
     const fmt = d => new Date(d).toLocaleString();
 
-    // NOVÉ: Konstanty pro vlastní rozsah
+    // NOVÉ: Konstanty pro vlastní rozsah (z minulé úpravy)
     const $selRange = $("#selRange");
     const $customGroup = $("#customRangeGroup");
     const $dateFrom = $("#dateFrom");
@@ -275,28 +294,66 @@
       return filteredRows;
     }
 
-    // --- Přepočet statistik + render grafu ---
+    // --- Přepočet statistik + render grafu (UPRAVENO pro více statistik) ---
     function update(){
       const showTemp = $("#chkTemp").checked;
       const showHum  = $("#chkHum").checked;
 
       // filtrace
       const rows = filterByRange(allRows).filter(r => visibleSensors.has(r.id));
-
-      // Statistika jen z teploty a z viditelných senzorů
+      
+      // --- VÝPOČET STATISTIK PRO TEPLOTU ---
       const tRows = rows.filter(r => Number.isFinite(r.temp));
       if (tRows.length) {
-        const min = tRows.reduce((a,b)=> b.temp < a.temp ? b : a);
-        const max = tRows.reduce((a,b)=> b.temp > a.temp ? b : a);
-        $("#minVal").textContent = `${min.temp.toFixed(2)} °C`;
-        $("#maxVal").textContent = `${max.temp.toFixed(2)} °C`;
-        $("#minInfo").textContent = `${SENSOR_LABEL[min.id] ?? min.id}, ${fmt(min.time)}`;
-        $("#maxInfo").textContent = `${SENSOR_LABEL[max.id] ?? max.id}, ${fmt(max.time)}`;
+        // Najdi Min/Max
+        const minT = tRows.reduce((a,b)=> b.temp < a.temp ? b : a);
+        const maxT = tRows.reduce((a,b)=> b.temp > a.temp ? b : a);
+        // Průměr
+        const sumT = tRows.reduce((acc, r) => acc + r.temp, 0);
+        const avgT = sumT / tRows.length;
+        // Rozsah
+        const rangeT = maxT.temp - minT.temp;
+
+        $("#minTVal").textContent = `${minT.temp.toFixed(2)} °C`;
+        $("#maxTVal").textContent = `${maxT.temp.toFixed(2)} °C`;
+        $("#avgTVal").textContent = `${avgT.toFixed(2)} °C`;
+        
+        $("#minTInfo").textContent = `${SENSOR_LABEL[minT.id] ?? minT.id}, ${fmt(minT.time)}`;
+        $("#maxTInfo").textContent = `${SENSOR_LABEL[maxT.id] ?? maxT.id}, ${fmt(maxT.time)}`;
+        $("#rangeTInfo").textContent = `Rozsah: ${rangeT.toFixed(2)} °C`;
       } else {
-        $("#minVal").textContent = "–"; $("#maxVal").textContent = "–";
-        $("#minInfo").textContent = "–"; $("#maxInfo").textContent = "–";
+        $("#minTVal").textContent = "–"; $("#maxTVal").textContent = "–"; $("#avgTVal").textContent = "–";
+        $("#minTInfo").textContent = "–"; $("#maxTInfo").textContent = "–"; $("#rangeTInfo").textContent = "–";
+      }
+      
+      // --- VÝPOČET STATISTIK PRO VLHKOST ---
+      const hRows = rows.filter(r => Number.isFinite(r.hum));
+      if (hRows.length) {
+        // Najdi Min/Max
+        const minH = hRows.reduce((a,b)=> b.hum < a.hum ? b : a);
+        const maxH = hRows.reduce((a,b)=> b.hum > a.hum ? b : a);
+        // Průměr
+        const sumH = hRows.reduce((acc, r) => acc + r.hum, 0);
+        const avgH = sumH / hRows.length;
+        // Rozsah
+        const rangeH = maxH.hum - minH.hum;
+
+        $("#minHVal").textContent = `${minH.hum.toFixed(2)} %`;
+        $("#maxHVal").textContent = `${maxH.hum.toFixed(2)} %`;
+        $("#avgHVal").textContent = `${avgH.toFixed(2)} %`;
+        
+        $("#minHInfo").textContent = `${SENSOR_LABEL[minH.id] ?? minH.id}, ${fmt(minH.time)}`;
+        $("#maxHInfo").textContent = `${SENSOR_LABEL[maxH.id] ?? maxH.id}, ${fmt(maxH.time)}`;
+        $("#rangeHInfo").textContent = `Rozsah: ${rangeH.toFixed(2)} %`;
+      } else {
+        $("#minHVal").textContent = "–"; $("#maxHVal").textContent = "–"; $("#avgHVal").textContent = "–";
+        $("#minHInfo").textContent = "–"; $("#maxHInfo").textContent = "–"; $("#rangeHInfo").textContent = "–";
       }
 
+      // ------------------------------------
+      // --- dataset a drawChart (beze změny) ---
+      // ------------------------------------
+      
       // dataset
       const ids = [...new Set(rows.map(r=>r.id))].sort();
       const datasets = [];
@@ -379,7 +436,7 @@
     $("#chkTemp").addEventListener("change", update);
     $("#chkHum").addEventListener("change", update);
 
-    // NOVÍ POSLUCHAČI pro pole vlastního rozsahu
+    // NOVÍ POSLUCHACI pro pole vlastního rozsahu
     $dateFrom.addEventListener("change", update);
     $dateTo.addEventListener("change", update);
 
