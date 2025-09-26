@@ -27,507 +27,519 @@
       --card: #ffffff;
       --muted: #6b7280;
       --text: #1f2937;
-      --accent: #2563eb;
-      --danger: #ef4444;
-      --info: #06b6d4;
-      --chart-bg: #ffffff;
+      --accent: #10b981;
+      --danger: #dc2626;
+      --info: #3b82f6;
+      --chart-bg: #f5f5f5;
       --chart-legend-text: #111;
     }
-    
-    /* Téma 3: Noční (Midnight Blue) */
-    .theme-midnight {
-      --bg: #050b18;
-      --card: #101931;
-      --muted: #7d8ea2;
-      --text: #c3d2e6;
-      --accent: #a3a0e5;
-      --danger: #cc6666;
-      --info: #85c2c7;
-      --chart-bg: #101931; /* Tmavé pozadí pro graf */
-      --chart-legend-text: #c3d2e6; /* Světlý text pro legendu */
+
+    /* Téma 3: Černá a Bílá (Monochrome) */
+    .theme-mono {
+      --bg: #000000;
+      --card: #111111;
+      --muted: #aaaaaa;
+      --text: #ffffff;
+      --accent: #22c55e;
+      --danger: #ef4444;
+      --info: #3b82f6;
+      --chart-bg: #fff;
+      --chart-legend-text: #111;
     }
 
-    /* Téma 4: Energetické (Vibrant Neon) */
-    .theme-neon {
-      --bg: #111111;
-      --card: #202020;
-      --muted: #888888;
-      --text: #f0f0f0;
-      --accent: #00ff99; /* Neonově zelená */
-      --danger: #ff33cc; /* Neonově růžová */
-      --info: #33ccff; /* Neonově modrá */
-      --chart-bg: #111111;
-      --chart-legend-text: #f0f0f0;
-    }
 
-    html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Helvetica,Arial; transition: background .3s;}
-    header{display:flex;align-items:center;gap:.6rem;padding:14px 18px;border-bottom:1px solid var(--card);} 
-    header .logo{width:22px;height:22px;background:radial-gradient(circle at 30% 30%,#ffd166,#ff9900);border-radius:50%;}
-    header h1{font-size:1.05rem;margin:0;font-weight:700}
-    .wrap{max-width:1100px;margin:0 auto;padding:14px}
-    .controls{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;margin-bottom:.8rem}
-    .controls .group{display:flex;gap:.6rem;align-items:center;background:var(--card);padding:8px 10px;border-radius:10px}
-    label{display:inline-flex;gap:.35rem;align-items:center;cursor:pointer;font-size:.95rem}
-    input[type="checkbox"]{width:18px;height:18px;accent-color:var(--accent)}
-    select,button,input[type="datetime-local"]{background:var(--bg);color:var(--text);border:1px solid var(--muted);border-radius:10px;padding:8px 10px;font-size:.95rem; transition: background .3s;} 
-    button.icon{display:inline-flex;gap:.4rem;align-items:center}
-    button#btnCsv{background:#0b3b73;border-color:#0b3b73}
-    button#btnPng{background:#0b5d48;border-color:#0b5d48}
-    button#btnReset{background:#5a3b09;border-color:#5a3b09}
-    .stats{display:flex;gap:.8rem;flex-wrap:wrap;margin:.6rem 0}
-    .stat{flex:1 1 200px;background:var(--card);border-radius:12px;padding:12px 14px}
-    .stat .ttl{font-size:.9rem;color:var(--muted);margin-bottom:.25rem}
-    .stat .val{font-size:1.6rem;font-weight:800}
-    .stat .sub{margin-top:.15rem;color:var(--muted);font-size:.88rem}
-    .chart-card{background:var(--chart-bg);border-radius:12px;padding:10px; transition: background .3s;} 
-    canvas{display:block;width:100%;height:420px;max-height:70vh}
-    .bad{color:var(--danger)} 
-    #rangeBadge{font-size:.85rem;color:var(--muted)}
-    .sensorPills{display:flex;flex-wrap:wrap;gap:.5rem}
-    .pill{background:var(--bg);border:1px solid var(--muted);color:var(--text);padding:4px 10px;border-radius:999px;font-size:.85rem; transition: background .3s;} 
-    
-    /* RESPONZIVNÍ ÚPRAVY PRO MOBILY */
-    @media (max-width:700px){
-      .controls .group{width:100%;justify-content:space-between; flex-wrap: wrap;} 
-      .controls .group:nth-child(2) > * {
-          flex-grow: 1; 
-          min-width: 120px; 
-      }
-      .stat{flex:1 1 calc(50% - 0.5rem);} 
-      #customRangeGroup{flex-wrap:wrap}
-      #customRangeGroup input{flex:1 1 45%;min-width:140px} 
-      canvas{height:360px}
-    }
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Helvetica,Arial;}
+    header{display:flex;align-items:center;gap:.6rem;padding:14px 18px;border-bottom:1px solid #222;}
+    header .logo{width:22px;height:22px;background:radial-gradient(circle at 30% 30%,#ffd166 0,#2dd4bf 20%,#171a21 60%);border-radius:6px;box-shadow:0 0 0 2px var(--card);}
+    h1{margin:0;font-size:1.4rem;font-weight:600;}
+    main{max-width:1200px;margin:1rem auto;padding:0 18px;}
+    .controls{display:flex;flex-wrap:wrap;gap:12px;padding:14px 0;border-bottom:1px solid var(--card);}
+    .controls-group{display:flex;gap:12px;flex-wrap:wrap;align-items:center;}
+    .controls label{display:flex;gap:6px;align-items:center;}
+    select, input[type=date]{background:var(--card);color:var(--text);border:1px solid #333;padding:6px 10px;border-radius:6px;}
+    button{background:var(--card);color:var(--text);border:1px solid #333;padding:6px 10px;border-radius:6px;cursor:pointer;transition:background .1s;}
+    button:hover{background:#333;}
+    .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;padding:14px 0;}
+    .stat-card{background:var(--card);padding:14px;border-radius:8px;box-shadow:0 4px 6px -1px rgba(0,0,0,.1);}
+    .stat-title{color:var(--muted);font-size:.8rem;font-weight:500;margin-bottom:4px;}
+    .stat-value{font-size:1.5rem;font-weight:700;}
+    .stat-group{display:flex;justify-content:space-between;align-items:baseline;margin-top:6px;}
+    .stat-temp{color:var(--danger);}
+    .stat-hum{color:var(--info);}
+    .toggles{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0;}
+    .toggle{padding:4px 10px;border-radius:20px;font-size:.9rem;cursor:pointer;background:var(--card);border:1px solid #333;transition:background .1s;}
+    .toggle.active{background:var(--accent);border-color:var(--accent);color:var(--bg);font-weight:600;}
+    .chart-container{padding:14px 0;}
+    .custom-range-inputs{display:none;gap:12px;margin-top:12px;}
+    .error-message{color:var(--danger);padding:10px;background:rgba(244,63,94,.1);border-radius:6px;border:1px solid var(--danger);margin-top:1rem;display:none;}
   </style>
 </head>
-<body>
+<body class="theme-dark">
   <header>
     <div class="logo"></div>
-    <h1>Meteo archiv</h1>
+    <h1>Meteo Archiv</h1>
   </header>
-
-  <div class="wrap">
+  <main>
     <div class="controls">
-      <div class="group">
-        <label><input id="chkTemp" type="checkbox" checked> Teplota (°C)</label>
-        <label><input id="chkHum" type="checkbox" checked> Vlhkost (%)</label>
-      </div>
-
-      <div class="group">
-        <select id="selRange">
-          <option value="today" selected>Dnešek</option>
-          <option value="week">Týden</option>
-          <option value="month">Měsíc</option>
-          <option value="all">Vše</option>
-          <option value="custom">Vlastní</option>
-        </select>
-        
-        <select id="selTheme">
-          <option value="theme-dark" selected>Oceanic Dark</option>
-          <option value="theme-light">Křišťálově bílé</option>
-          <option value="theme-midnight">Noční (Tmavé)</option>
-          <option value="theme-neon">Energetické</option>
-        </select>
-
-        <div id="customRangeGroup" style="display:none; gap:.6rem;">
-          <input type="datetime-local" id="dateFrom" title="Datum a čas Od">
-          <input type="datetime-local" id="dateTo" title="Datum a čas Do">
-        </div>
-
+      <div class="controls-group">
+        <label for="selFile">Archiv:</label>
         <select id="selFile"></select>
-
-        <button id="btnReset" class="icon" title="Reset zoom"><span>↺</span> Reset</button>
-        <button id="btnCsv" class="icon" title="Stáhnout CSV">📄 CSV</button>
-        <button id="btnPng" class="icon" title="Stáhnout PNG graf">🖼 PNG</button>
+      </div>
+      <div class="controls-group">
+        <label for="selRange">Zobrazit:</label>
+        <select id="selRange">
+          <option value="today">Dnes</option>
+          <option value="yesterday">Včera</option>
+          <option value="last7">Posledních 7 dní</option>
+          <option value="last30">Posledních 30 dní</option>
+          <option value="all">Celý soubor</option>
+          <option value="custom">Vlastní rozsah</option>
+        </select>
+        <div id="customRangeInputs" class="custom-range-inputs">
+          <input type="date" id="dateFrom" title="Datum od" />
+          <input type="date" id="dateTo" title="Datum do" />
+        </div>
+      </div>
+      <div class="controls-group">
+        <label for="chkTemp"><input type="checkbox" id="chkTemp" checked />Teplota</label>
+        <label for="chkHum"><input type="checkbox" id="chkHum" />Vlhkost</label>
+      </div>
+      <div class="controls-group">
+        <button id="btnReset" title="Resetovat zoom">Reset Zoom</button>
+        <button id="btnCsv" title="Stáhnout data ve formátu CSV">CSV</button>
+        <button id="btnPng" title="Uložit graf jako PNG obrázek">PNG</button>
+      </div>
+      <div class="controls-group">
+        <label for="selTheme">Téma:</label>
+        <select id="selTheme">
+          <option value="theme-dark">Oceanic Dark</option>
+          <option value="theme-light">Crystal Light</option>
+          <option value="theme-mono">Monochrome</option>
+        </select>
       </div>
     </div>
 
-    <div class="controls">
-      <div id="sensorBox" class="sensorPills"></div>
-      <span id="rangeBadge"></span>
+    <div id="errorMessage" class="error-message"></div>
+
+    <div class="toggles" id="sensorToggles">
+      </div>
+
+    <div class="chart-container">
+      <canvas id="meteoChart"></canvas>
     </div>
 
-    <div class="stats">
-      <div class="stat">
-        <div class="ttl">Min. teplota 🥶</div>
-        <div class="val" id="minTVal">–</div>
-        <div class="sub" id="minTInfo">–</div>
+    <div class="stats" id="statsContainer">
       </div>
-      <div class="stat">
-        <div class="ttl">Max. teplota 🔥</div>
-        <div class="val" id="maxTVal">–</div>
-        <div class="sub" id="maxTInfo">–</div>
-      </div>
-      <div class="stat">
-        <div class="ttl">Průměrná teplota 🌡️</div>
-        <div class="val" id="avgTVal">–</div>
-        <div class="sub" id="rangeTInfo">–</div> </div>
-      
-      <div class="stat">
-        <div class="ttl">Min. vlhkost 💧</div>
-        <div class="val" id="minHVal">–</div>
-        <div class="sub" id="minHInfo">–</div>
-      </div>
-      <div class="stat">
-        <div class="ttl">Max. vlhkost 💦</div>
-        <div class="val" id="maxHVal">–</div>
-        <div class="sub" id="maxHInfo">–</div>
-      </div>
-      <div class="stat">
-        <div class="ttl">Průměrná vlhkost 💨</div>
-        <div class="val" id="avgHVal">–</div>
-        <div class="sub" id="rangeHInfo">–</div> </div>
-    </div>
-
-    <div class="chart-card"><canvas id="chart"></canvas></div>
-  </div>
+  </main>
 
   <script>
-    // --- Pomocné ---
-    // Nyní přidáme popisek "Doma" pro nové SSID
-    const SENSOR_LABEL = { 
-        "UNI": "UNI", 
-        "Venek": "Venek",
-        "Doma": "Doma" // NOVÉ: Popisek pro čidlo "Doma" (source z CSV)
-    };
+    // Zjednodušená verze document.querySelector
+    const $ = s => document.querySelector(s);
+    const $$ = s => document.querySelectorAll(s);
 
-    const $ = sel => document.querySelector(sel);
-    const fmt = d => new Date(d).toLocaleString();
-
-    // Konstanty pro ovládání
     const $selRange = $("#selRange");
-    const $customGroup = $("#customRangeGroup");
     const $dateFrom = $("#dateFrom");
     const $dateTo = $("#dateTo");
     const $selTheme = $("#selTheme");
 
-    // NOVÉ: Logika pro načtení uloženého tématu při startu
-    const savedTheme = localStorage.getItem('selectedTheme') || 'theme-dark';
-    document.body.classList.add(savedTheme);
-    // Nastav správnou hodnotu v selectu při startu
-    if ($selTheme) $selTheme.value = savedTheme;
+    // --- Pomocné ---
+    // Mapování ID senzoru (ze sloupce 'source' v CSV) na popisek pro web
+    const SENSOR_LABEL = { "UNI": "UNI", "Venek": "Venek", "Doma": "Doma" };
 
-    async function fetchJSON(paths) {
-      for (const p of paths) {
-        try {
-          const r = await fetch(p, { cache: "no-store" });
-          if (r.ok) return await r.json();
-        } catch {}
-      }
-      throw new Error("index.json nenalezen (zkoušeno: " + paths.join(", ") + ")");
+    // NOVÉ: Centrální definice barev pro každý senzor a typ dat
+    const SENSOR_COLORS = {
+        "UNI": {
+            temp: "#f43f5e",   // Malinově červená (UNI Teplota)
+            hum:  "#fda4af"    // Světle růžová (UNI Vlhkost)
+        },
+        "Venek": {
+            temp: "#2563eb",   // Intenzivní modrá (Venek Teplota)
+            hum:  "#93c5fd"    // Světle modrá (Venek Vlhkost)
+        },
+        "Doma": {
+            temp: "#059669",   // Tmavě zelená (Doma Teplota)
+            hum:  "#6ee7b7"    // Světle zelená (Doma Vlhkost)
+        },
+        "Terasa": { // Příklad pro budoucí senzor
+            temp: "#a855f7",   // Fialová (Terasa Teplota)
+            hum:  "#d8b4fe"    // Světle fialová (Terasa Vlhkost)
+        }
+    };
+    
+    let data = [];
+    let chart = null;
+
+    function formatTime(t) {
+      return t.toLocaleString("cs-CZ", { dateStyle: "short", timeStyle: "short" });
     }
-    async function fetchText(paths) {
-      for (const p of paths) {
-        try {
-          const r = await fetch(p, { cache: "no-store" });
-          if (r.ok) return await r.text();
-        } catch {}
-      }
-      throw new Error("CSV nenalezeno (zkoušeno: " + paths.join(", ") + ")");
+
+    function formatDateForInput(d) {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
     }
 
-    // --- Stav ---
-    let allRows = [];      // původní data (vše)
-    let visibleSensors = new Set(); // viditelné senzory
-    let chart;
-
-    // --- Načtení seznamu souborů ---
+    // Načte seznam dostupných CSV souborů
     async function loadIndex() {
-      const files = await fetchJSON(["data/index.json","docs/data/index.json"]);
-      const sel = $("#selFile");
-      sel.innerHTML = "";
-      files.forEach(f => {
-        const o = document.createElement("option");
-        o.value = f; o.textContent = f;
-        sel.appendChild(o);
-      });
-      // preferuj history.csv, když existuje
-      if (files.includes("history.csv")) sel.value = "history.csv";
-      await loadCSV();
+      const file = "index.json";
+      try {
+        const r = await fetch(`docs/data/${file}`);
+        if (!r.ok) {
+          throw new Error(`Chyba při načítání ${file}`);
+        }
+        const index = await r.json();
+        const selFile = $("#selFile");
+        selFile.innerHTML = "";
+        index.forEach(f => {
+          const opt = document.createElement("option");
+          opt.value = f;
+          opt.textContent = f;
+          selFile.appendChild(opt);
+        });
+        await loadCSV();
+        
+        // Nastaví výchozí rozsah na "last30" po načtení dat
+        $selRange.value = "last30";
+        update();
+        
+      } catch (err) {
+        $("#errorMessage").textContent = `Chyba při inicializaci: ${err.message}. Zkontrolujte, zda existuje soubor docs/data/index.json.`;
+        $("#errorMessage").style.display = "block";
+      }
     }
 
-    // --- Načtení CSV ---
+    // Načte vybraný CSV soubor
     async function loadCSV() {
       const f = $("#selFile").value;
-      const text = await fetchText([`data/${f}`,`docs/data/${f}`]);
+      const fileUrl = `docs/data/${f}`;
+      $("#errorMessage").style.display = "none";
+      
+      try {
+        const r = await fetch(fileUrl);
+        if (!r.ok) {
+          throw new Error(`Soubor ${fileUrl} nenalezen (Status: ${r.status}).`);
+        }
+        const csvText = await r.text();
+        data = parseCSV(csvText);
+        
+        // Po načtení nových dat musíme znovu vygenerovat přepínače a aktualizovat graf
+        renderSensorToggles(data);
+        update(); 
 
-      const lines = text.trim().split(/\r?\n/);
-      // Podpora s/bez hlavičky
-      let start = 0;
-      if (lines[0].toLowerCase().includes("timestamp")) start = 1;
-
-      allRows = [];
-      for (let i = start; i < lines.length; i++) {
-        const [ts, id, t, h] = lines[i].split(",");
-        if (!ts || !id) continue;
-        const time = new Date(ts);
-        const temp = parseFloat(t);
-        const hum  = parseFloat(h);
-        if (Number.isNaN(time.getTime())) continue;
-        allRows.push({ time, id, temp, hum });
+      } catch (err) {
+        $("#errorMessage").textContent = `Chyba při načítání dat: ${err.message}`;
+        $("#errorMessage").style.display = "block";
+        data = []; // Vyčistit data při chybě
+        update();
       }
-
-      // Inicializuj viditelné senzory
-      const ids = [...new Set(allRows.map(r => r.id))].sort();
-      visibleSensors = new Set(ids);
-      renderSensorToggles(ids);
-
-      toggleCustomRangeInputs();
-      update();
-    }
-
-    // --- Přepínače senzorů (pills) ---
-    function renderSensorToggles(ids){
-      const box = $("#sensorBox");
-      box.innerHTML = "";
-      ids.forEach(id => {
-        const pill = document.createElement("label");
-        pill.className = "pill";
-        pill.innerHTML = `<input type="checkbox" data-id="${id}" checked style="accent-color:#2dd4bf;margin-right:6px"> ${SENSOR_LABEL[id] ?? id}`;
-        pill.querySelector("input").addEventListener("change", (e)=>{
-          if (e.target.checked) visibleSensors.add(id);
-          else visibleSensors.delete(id);
-          update();
-        });
-        box.appendChild(pill);
-      });
     }
     
-    // Zobrazení/skrytí polí pro vlastní rozsah a nastavení výchozích hodnot
-    function toggleCustomRangeInputs(){
-      if ($selRange.value === "custom") {
-        $customGroup.style.display = "flex"; // Zobrazit
-        // Nastavíme výchozí hodnoty (dnešek) pokud nejsou nastavené
-        if (!$dateFrom.value || !$dateTo.value) {
-            const now = new Date();
-            const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-            // Formát pro input[type="datetime-local"] je YYYY-MM-DDTHH:mm
-            const toStr = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
-            const fromStr = new Date(startOfDay.getTime() - (startOfDay.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
-            $dateFrom.value = fromStr;
-            $dateTo.value = toStr;
-        }
-      } else {
-        $customGroup.style.display = "none"; // Skrýt
+    // Zpracování CSV dat
+    function parseCSV(csv) {
+      const lines = csv.trim().split('\n').filter(line => line.trim() !== '');
+      if (lines.length === 0) return [];
+      
+      const header = lines[0].split(',').map(h => h.trim());
+      const records = [];
+
+      for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(',');
+        if (values.length !== header.length) continue;
+
+        const record = {
+          time: new Date(values[0].trim()),
+          id: values[1].trim(),
+          temp: parseFloat(values[2].trim()) || null,
+          hum: parseFloat(values[3].trim()) || null,
+        };
+        // Použijte název senzoru pro id (místo původního ID, pokud se používá mapování)
+        // Váš CSV by již měl obsahovat textové názvy (UNI, Venek, Doma) ve sloupci 'source'
+        records.push(record);
       }
+      return records.sort((a, b) => a.time - b.time); // Seřazení pro Chart.js
+    }
+    
+    // Přepínání zobrazení Vlastního rozsahu
+    function toggleCustomRangeInputs() {
+        const isCustom = $selRange.value === 'custom';
+        $("#customRangeInputs").style.display = isCustom ? 'flex' : 'none';
+        
+        // Nastavení výchozích hodnot, pokud je "Custom" vybráno poprvé
+        if (isCustom && !$dateFrom.value && data.length > 0) {
+            const firstDate = data[0].time;
+            const lastDate = data[data.length - 1].time;
+            
+            $dateFrom.value = formatDateForInput(firstDate);
+            $dateTo.value = formatDateForInput(lastDate);
+        }
     }
 
 
-    // --- Filtrování dle rozsahu ---
-    function filterByRange(rows){
+    // Filtrování dat na základě rozsahu
+    function filterData(data) {
+      if (data.length === 0) return [];
+      
+      let startDate, endDate;
+      const now = new Date();
       const range = $selRange.value;
-      const badge = $("#rangeBadge");
-      
-      let from = null;
-      let to = new Date(); 
 
-      // 1. Logika pro rychlé volby
-      if (range !== "custom" && range !== "all") {
-        const now = new Date();
-        if (range === "today") from = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        else if (range === "week") from = new Date(now.getTime() - 7*24*3600*1000);
-        else if (range === "month") from = new Date(now.getTime() - 31*24*3600*1000);
-        
-      } 
-      // 2. Logika pro vlastní rozsah ("custom")
-      else if (range === "custom") {
-        from = $dateFrom.value ? new Date($dateFrom.value) : null;
-        to = $dateTo.value ? new Date($dateTo.value) : new Date();
-        
-        // Kontrola platnosti dat pro custom rozsah
-        if (!from || Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
-          badge.textContent = "Zobrazeno: Neplatný vlastní rozsah";
-          return [];
-        }
+      // Nastavení data podle předvolby
+      switch (range) {
+        case 'today':
+          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          endDate = now;
+          break;
+        case 'yesterday':
+          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+          endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // Do začátku dneška
+          break;
+        case 'last7':
+          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          endDate = now;
+          break;
+        case 'last30':
+          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          endDate = now;
+          break;
+        case 'custom':
+          if ($dateFrom.value) startDate = new Date($dateFrom.value);
+          if ($dateTo.value) endDate = new Date($dateTo.value);
+          
+          if (!startDate || !endDate || startDate.getTime() >= endDate.getTime()) {
+            // Při chybě rozsahu se vrátí "Celý soubor"
+            return data;
+          }
+          // Posun koncového data na konec dne
+          endDate.setHours(23, 59, 59, 999); 
+          break;
+        case 'all':
+        default:
+          return data; // Celý soubor
       }
 
-      // Filtr
-      const filteredRows = rows.filter(r => {
-        const afterFrom = from ? r.time.getTime() >= from.getTime() : true;
-        const beforeTo = r.time.getTime() <= to.getTime();
-        return afterFrom && beforeTo;
-      });
-      
-      // Aktualizace badge
-      const toStr = to.toLocaleString();
-      const fromStr = from ? from.toLocaleString() : "—";
-      badge.textContent = `Zobrazeno: ${fromStr} — ${toStr}`;
-      
-      return filteredRows;
+      // Filtrování a zohlednění časové zóny
+      return data.filter(r => r.time >= startDate && r.time <= endDate);
     }
 
-    // --- Přepočet statistik + render grafu ---
-    function update(){
+    // Statistické výpočty
+    function calculateStats(rows) {
+      const sensorIds = [...new Set(rows.map(r => r.id))];
+      const stats = {};
+
+      sensorIds.forEach(id => {
+        const srows = rows.filter(r => r.id === id);
+        if (srows.length === 0) return;
+
+        const temps = srows.map(r => r.temp).filter(t => t !== null);
+        const hums = srows.map(r => r.hum).filter(h => h !== null);
+
+        stats[id] = {
+          name: SENSOR_LABEL[id] ?? id,
+          minTemp: temps.length ? Math.min(...temps).toFixed(2) : 'N/A',
+          maxTemp: temps.length ? Math.max(...temps).toFixed(2) : 'N/A',
+          avgTemp: temps.length ? (temps.reduce((a, b) => a + b, 0) / temps.length).toFixed(2) : 'N/A',
+          minHum: hums.length ? Math.min(...hums).toFixed(2) : 'N/A',
+          maxHum: hums.length ? Math.max(...hums).toFixed(2) : 'N/A',
+          avgHum: hums.length ? (hums.reduce((a, b) => a + b, 0) / hums.length).toFixed(2) : 'N/A',
+          lastTemp: srows[srows.length - 1].temp?.toFixed(2) ?? 'N/A',
+          lastHum: srows[srows.length - 1].hum?.toFixed(2) ?? 'N/A',
+          lastTime: formatTime(srows[srows.length - 1].time)
+        };
+      });
+      return stats;
+    }
+
+    // Renderování statistik
+    function renderStats(rows) {
+      const stats = calculateStats(rows);
+      const container = $("#statsContainer");
+      container.innerHTML = "";
+
+      for (const id in stats) {
+        const s = stats[id];
+        const card = document.createElement("div");
+        card.classList.add("stat-card");
+        
+        card.innerHTML = `
+          <div class="stat-title">${s.name}</div>
+          <div class="stat-value stat-temp">${s.lastTemp} °C</div>
+          <div class="stat-group">
+            <div class="stat-title">Min: <span class="stat-temp">${s.minTemp}</span> Max: <span class="stat-temp">${s.maxTemp}</span></div>
+            <div class="stat-title">${s.lastTime}</div>
+          </div>
+          <div class="stat-value stat-hum">${s.lastHum} %</div>
+          <div class="stat-group">
+            <div class="stat-title">Min: <span class="stat-hum">${s.minHum}</span> Max: <span class="stat-hum">${s.maxHum}</span></div>
+          </div>
+        `;
+        container.appendChild(card);
+      }
+    }
+
+    // Generování přepínačů senzorů
+    function renderSensorToggles(data) {
+      const allIds = [...new Set(data.map(r => r.id))];
+      const container = $("#sensorToggles");
+      container.innerHTML = "";
+
+      allIds.forEach(id => {
+        const toggle = document.createElement("div");
+        toggle.classList.add("toggle");
+        toggle.textContent = SENSOR_LABEL[id] ?? id;
+        toggle.dataset.sensorId = id;
+        
+        // Na začátku jsou všechny aktivní, pokud nemáme uložený stav
+        if (localStorage.getItem(`sensor-${id}`) !== 'false') {
+             toggle.classList.add("active");
+        }
+        
+        // Akce pro přepínání
+        toggle.addEventListener("click", () => {
+          toggle.classList.toggle("active");
+          const isActive = toggle.classList.contains("active");
+          localStorage.setItem(`sensor-${id}`, isActive);
+          update(); // Aktualizace grafu po přepnutí
+        });
+        container.appendChild(toggle);
+      });
+    }
+
+    // Filtrování dat podle přepínačů senzorů
+    function filterBySensor(rows) {
+      const activeSensors = [];
+      $$(".toggle.active").forEach(t => {
+        activeSensors.push(t.dataset.sensorId);
+      });
+
+      // Pokud není aktivní žádný senzor, zobrazíme všechny, aby se graf nezhroutil
+      if (activeSensors.length === 0) return rows; 
+
+      return rows.filter(r => activeSensors.includes(r.id));
+    }
+
+
+    function drawChart(datasets) {
+      const isDarkMode = document.body.classList.contains("theme-dark");
+      const chartTextColor = isDarkMode ? 'var(--text)' : 'var(--chart-legend-text)';
+      const gridColor = isDarkMode ? '#222' : '#ddd';
+
+      const config = {
+        type: "line",
+        data: { datasets: datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          color: chartTextColor,
+          scales: {
+            x: { type: "time", time: { unit: "hour" }, ticks: { color: chartTextColor }, grid: { color: gridColor } },
+            yT: { position: "left", title:{display:true,text:"°C"}, ticks: { color: chartTextColor }, grid: { color: gridColor } },
+            yH: { position: "right", title:{display:true,text:"%"}, ticks: { color: chartTextColor }, grid: { drawOnChartArea: false, color: gridColor }, suggestedMin: 0, suggestedMax: 100 }
+          },
+          plugins: {
+            legend: { labels: { color: chartTextColor, font:{weight:"600"} } },
+            zoom: {
+              zoom: { wheel:{enabled:true}, pinch:{enabled:true}, mode:"x" },
+              pan:  { enabled:true, mode:"x" }
+            }
+          }
+        }
+      };
+
+      if (chart) {
+        chart.data.datasets = datasets;
+        chart.options.scales.x.ticks.color = chartTextColor;
+        chart.options.scales.yT.ticks.color = chartTextColor;
+        chart.options.scales.yH.ticks.color = chartTextColor;
+        chart.options.plugins.legend.labels.color = chartTextColor;
+        chart.update();
+      } else {
+        chart = new Chart($("#meteoChart"), config);
+      }
+    }
+
+
+    function update() {
+      // 1. Vyfiltrovat podle časového rozsahu (celý soubor, dnes, včera, custom...)
+      let rows = filterData(data);
+      // 2. Vyfiltrovat podle přepínačů senzorů
+      rows = filterBySensor(rows); 
+      
       const showTemp = $("#chkTemp").checked;
-      const showHum  = $("#chkHum").checked;
+      const showHum = $("#chkHum").checked;
 
-      // filtrace
-      const rows = filterByRange(allRows).filter(r => visibleSensors.has(r.id));
-      
-      // --- VÝPOČET STATISTIK PRO TEPLOTU ---
-      const tRows = rows.filter(r => Number.isFinite(r.temp));
-      if (tRows.length) {
-        const minT = tRows.reduce((a,b)=> b.temp < a.temp ? b : a);
-        const maxT = tRows.reduce((a,b)=> b.temp > a.temp ? b : a);
-        const sumT = tRows.reduce((acc, r) => acc + r.temp, 0);
-        const avgT = sumT / tRows.length;
-        const rangeT = maxT.temp - minT.temp;
-
-        $("#minTVal").textContent = `${minT.temp.toFixed(2)} °C`;
-        $("#maxTVal").textContent = `${maxT.temp.toFixed(2)} °C`;
-        $("#avgTVal").textContent = `${avgT.toFixed(2)} °C`;
-        
-        $("#minTInfo").textContent = `${SENSOR_LABEL[minT.id] ?? minT.id}, ${fmt(minT.time)}`;
-        $("#maxTInfo").textContent = `${SENSOR_LABEL[maxT.id] ?? maxT.id}, ${fmt(maxT.time)}`;
-        $("#rangeTInfo").textContent = `Rozsah: ${rangeT.toFixed(2)} °C`;
-      } else {
-        $("#minTVal").textContent = "–"; $("#maxTVal").textContent = "–"; $("#avgTVal").textContent = "–";
-        $("#minTInfo").textContent = "–"; $("#maxTInfo").textContent = "–"; $("#rangeTInfo").textContent = "–";
-      }
-      
-      // --- VÝPOČET STATISTIK PRO VLHKOST ---
-      const hRows = rows.filter(r => Number.isFinite(r.hum));
-      if (hRows.length) {
-        const minH = hRows.reduce((a,b)=> b.hum < a.hum ? b : a);
-        const maxH = hRows.reduce((a,b)=> b.hum > a.hum ? b : a);
-        const sumH = hRows.reduce((acc, r) => acc + r.hum, 0);
-        const avgH = sumH / hRows.length;
-        const rangeH = maxH.hum - minH.hum;
-
-        $("#minHVal").textContent = `${minH.hum.toFixed(2)} %`;
-        $("#maxHVal").textContent = `${maxH.hum.toFixed(2)} %`;
-        $("#avgHVal").textContent = `${avgH.toFixed(2)} %`;
-        
-        $("#minHInfo").textContent = `${SENSOR_LABEL[minH.id] ?? minH.id}, ${fmt(minH.time)}`;
-        $("#maxHInfo").textContent = `${SENSOR_LABEL[maxH.id] ?? maxH.id}, ${fmt(maxH.time)}`;
-        $("#rangeHInfo").textContent = `Rozsah: ${rangeH.toFixed(2)} %`;
-      } else {
-        $("#minHVal").textContent = "–"; $("#maxHVal").textContent = "–"; $("#avgHVal").textContent = "–";
-        $("#minHInfo").textContent = "–"; $("#maxHInfo").textContent = "–"; $("#rangeHInfo").textContent = "–";
-      }
-
-      // ------------------------------------
-      // --- dataset a drawChart ---
-      // ------------------------------------
-      
-      // dataset
-      const ids = [...new Set(rows.map(r=>r.id))].sort();
+      // --- Graf: Sestavení Datasets ---
       const datasets = [];
-      const colorFor = id => id === "4065" ? "#ef4444" : "#3b82f6"; // UNI=červená, Venek=modrá
+      // Zjistíme, jaké ID senzorů nám zbyly po filtrování
+      const ids = [...new Set(rows.map(r => r.id))];
 
-      ids.forEach(id=>{
-        const srows = rows.filter(r=>r.id===id);
+      
+      ids.forEach(id => {
+        const srows = rows.filter(r => r.id === id);
+        
+        // Získáme barvy pro daný ID senzoru, pokud existují, jinak default šedá
+        const colors = SENSOR_COLORS[id] || { temp: "#cccccc", hum: "#eeeeee" };
+
         if (showTemp) {
           datasets.push({
             label: `${SENSOR_LABEL[id] ?? id} (°C)`,
-            data: srows.map(r=>({x:r.time,y:r.temp})),
-            borderColor: colorFor(id),
+            data: srows.map(r => ({ x: r.time, y: r.temp })),
+            borderColor: colors.temp, // Používá unikátní barvu pro teplotu
             backgroundColor: "transparent",
             yAxisID: "yT",
             tension: .2,
             pointRadius: 0,
-            borderWidth: 2
+            borderWidth: 2,
+            borderDash: [] // Plná čára pro teplotu
           });
         }
         if (showHum) {
           datasets.push({
             label: `${SENSOR_LABEL[id] ?? id} (%)`,
-            data: srows.map(r=>({x:r.time,y:r.hum})),
-            borderColor: id === "4065" ? "#f97316" : "#22d3ee",
+            data: srows.map(r => ({ x: r.time, y: r.hum })),
+            borderColor: colors.hum, // Používá unikátní světlejší barvu pro vlhkost
             backgroundColor: "transparent",
             yAxisID: "yH",
             tension: .2,
             pointRadius: 0,
-            borderDash: [6,4],
-            borderWidth: 2
+            borderWidth: 2,
+            borderDash: [6, 4] // Přerušovaná čára pro vlhkost
           });
         }
       });
 
       drawChart(datasets);
+      renderStats(rows);
     }
 
-    function drawChart(datasets){
-      const ctx = $("#chart").getContext("2d");
-      if (chart) chart.destroy();
-
-      const isMobile = window.innerWidth <= 700;
-      const ticksLimit = isMobile ? 5 : 7;
-      const legendFontSize = isMobile ? 10 : 12;
-      const titleFontSize = isMobile ? 10 : 12;
-      
-      // Získej barvu pro text legendy/osy z aktivního CSS tématu
-      const chartLegendTextColor = getComputedStyle(document.body).getPropertyValue('--chart-legend-text').trim() || '#111';
-
-      chart = new Chart(ctx, {
-        type: "line",
-        data: { datasets },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          animation: false,
-          interaction: { mode: "nearest", axis: "x", intersect: false },
-          layout: {
-            padding: { top: 10, bottom: isMobile ? 0 : 10 }
-          },
-          scales: {
-            x: {
-              type: "time",
-              time: { tooltipFormat: "dd.MM.yyyy HH:mm", displayFormats: { hour: "HH:mm", day: "d.M." } },
-              ticks: { 
-                autoSkip: true, 
-                maxTicksLimit: ticksLimit,
-                color: chartLegendTextColor,
-                font: { size: titleFontSize }
-              },
-              grid: { color: "#eee2", drawBorder:false }
-            },
-            yT: { 
-              position: "left", 
-              title:{display:true,text:"°C", font: { size: titleFontSize }}, 
-              grid:{color:"#eee2"}, 
-              suggestedMin: null, suggestedMax: null,
-              ticks: { color: chartLegendTextColor, font: { size: titleFontSize } }
-            },
-            yH: { 
-              position: "right", 
-              title:{display:true,text:"%", font: { size: titleFontSize }}, 
-              grid:{drawOnChartArea:false}, 
-              suggestedMin: 0, suggestedMax: 100,
-              ticks: { color: chartLegendTextColor, font: { size: titleFontSize } }
-            }
-          },
-          plugins: {
-            legend: { 
-              labels: { 
-                color: chartLegendTextColor,
-                font:{ weight:"600", size: legendFontSize },
-                boxWidth: isMobile ? 10 : 40,
-                padding: 10
-              } 
-            },
-            tooltip: {
-                titleFont: { size: 12 },
-                bodyFont: { size: 11 },
-            },
-            zoom: {
-              zoom: { wheel:{enabled:true}, pinch:{enabled:true, threshold: 0.1}, mode:"x" },
-              pan:  { enabled:true, mode:"x", threshold: 5 }
-            }
-          }
+    // --- Akce (UPRAVENO pro vlastní rozsah) ---
+    function toggleCustomRangeInputs() {
+        const isCustom = $selRange.value === 'custom';
+        $("#customRangeInputs").style.display = isCustom ? 'flex' : 'none';
+        
+        if (isCustom && !$dateFrom.value && data.length > 0) {
+            const lastDate = new Date();
+            const firstDate = new Date(lastDate.getTime() - 30 * 24 * 60 * 60 * 1000); // 30 dní zpět
+            
+            $dateFrom.value = formatDateForInput(firstDate);
+            $dateTo.value = formatDateForInput(lastDate);
         }
-      });
     }
 
-    // --- Akce ---
+    // Obnovení uloženého tématu
+    const savedTheme = localStorage.getItem('selectedTheme') || 'theme-dark';
+    document.body.className = ''; 
+    document.body.classList.add(savedTheme);
+    $selTheme.value = savedTheme;
+
     $("#selFile").addEventListener("change", loadCSV);
     
     // Sloučíme akce pro selRange
-    $selRange.addEventListener("change", ()=>{
+    $selRange.addEventListener("change", () => {
         toggleCustomRangeInputs(); // Přepne zobrazení polí
         update(); // Aktualizuje graf
     });
-    
+
     // Akce pro přepínání témat
     $selTheme.addEventListener("change", (e) => {
       // 1. Odeber všechny existující třídy témat
@@ -555,16 +567,17 @@
         location.href = r.ok ? `data/${f}` : `docs/data/${f}`;
       }).catch(()=> location.href = `data/${f}`);
     });
-    $("#btnPng").addEventListener("click", ()=>{
+    $("#btnPng").addEventListener("click", ()=> {
       const a = document.createElement("a");
       a.href = chart.toBase64Image(); a.download = "graf.png"; a.click();
     });
 
     // start
     loadIndex().catch(err=>{
-      console.error(err);
-      alert("Nepodařilo se načíst data (index.json). Zkontroluj, že existuje v `docs/data/`.");
+      $("#errorMessage").textContent = `Kritická chyba: ${err.message}.`;
+      $("#errorMessage").style.display = "block";
     });
+
   </script>
 </body>
 </html>
