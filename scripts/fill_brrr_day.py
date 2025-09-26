@@ -9,7 +9,8 @@ tz = pytz.timezone("Europe/Prague")
 
 SENSORS = {
     "UNI": "https://brrr.cz/brrr.php?runpagephp=afterlogin&uloha=nacti_data&ssid=Teplomer_UNI_2500&kod=49b5cf6b0607e62aa6d4cb10912cf107",
-    "Venek": "https://brrr.cz/brrr.php?runpagephp=afterlogin&uloha=nacti_data&ssid=Teplomer_UNI_320&kod=fb2255b580a412aed10172ab7d973c7f"
+    "Venek": "https://brrr.cz/brrr.php?runpagephp=afterlogin&uloha=nacti_data&ssid=Teplomer_UNI_320&kod=fb2255b580a412aed10172ab7d973c7f",
+    "Doma": "https://brrr.cz/brrr.php?runpagephp=afterlogin&uloha=nacti_data&ssid=Teplomer_UNI_318&kod=b2038caff21963d4f356aca3ea30387b"
 }
 
 def ensure_header():
