@@ -8,7 +8,8 @@
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.umd.min.js"></script>
   <style>
-    :root {
+    /* Původní Téma: Oceanic Dark (Výchozí) */
+    :root, .theme-dark {
       --bg: #0f1115;
       --card: #171a21;
       --muted: #9aa4b2;
@@ -16,9 +17,51 @@
       --accent: #2dd4bf;
       --danger: #f43f5e;
       --info: #60a5fa;
+      --chart-bg: #fff; /* Barva pozadí grafu */
+      --chart-legend-text: #111; /* Barva textu legendy */
     }
-    html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Helvetica,Arial;}
-    header{display:flex;align-items:center;gap:.6rem;padding:14px 18px;border-bottom:1px solid #222;}
+
+    /* Téma 2: Křišťálově bílé (Crystal Light) */
+    .theme-light {
+      --bg: #f8f8f8;
+      --card: #ffffff;
+      --muted: #6b7280;
+      --text: #1f2937;
+      --accent: #2563eb;
+      --danger: #ef4444;
+      --info: #06b6d4;
+      --chart-bg: #ffffff;
+      --chart-legend-text: #111;
+    }
+    
+    /* Téma 3: Noční (Midnight Blue) */
+    .theme-midnight {
+      --bg: #050b18;
+      --card: #101931;
+      --muted: #7d8ea2;
+      --text: #c3d2e6;
+      --accent: #a3a0e5;
+      --danger: #cc6666;
+      --info: #85c2c7;
+      --chart-bg: #101931; /* Tmavé pozadí pro graf */
+      --chart-legend-text: #c3d2e6; /* Světlý text pro legendu */
+    }
+
+    /* Téma 4: Energetické (Vibrant Neon) */
+    .theme-neon {
+      --bg: #111111;
+      --card: #202020;
+      --muted: #888888;
+      --text: #f0f0f0;
+      --accent: #00ff99; /* Neonově zelená */
+      --danger: #ff33cc; /* Neonově růžová */
+      --info: #33ccff; /* Neonově modrá */
+      --chart-bg: #111111;
+      --chart-legend-text: #f0f0f0;
+    }
+
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Helvetica,Arial; transition: background .3s;}
+    header{display:flex;align-items:center;gap:.6rem;padding:14px 18px;border-bottom:1px solid var(--card);} 
     header .logo{width:22px;height:22px;background:radial-gradient(circle at 30% 30%,#ffd166,#ff9900);border-radius:50%;}
     header h1{font-size:1.05rem;margin:0;font-weight:700}
     .wrap{max-width:1100px;margin:0 auto;padding:14px}
@@ -26,38 +69,31 @@
     .controls .group{display:flex;gap:.6rem;align-items:center;background:var(--card);padding:8px 10px;border-radius:10px}
     label{display:inline-flex;gap:.35rem;align-items:center;cursor:pointer;font-size:.95rem}
     input[type="checkbox"]{width:18px;height:18px;accent-color:var(--accent)}
-    select,button,input[type="datetime-local"]{background:#111722;color:var(--text);border:1px solid #223047;border-radius:10px;padding:8px 10px;font-size:.95rem}
+    select,button,input[type="datetime-local"]{background:var(--bg);color:var(--text);border:1px solid var(--muted);border-radius:10px;padding:8px 10px;font-size:.95rem; transition: background .3s;} 
     button.icon{display:inline-flex;gap:.4rem;align-items:center}
     button#btnCsv{background:#0b3b73;border-color:#0b3b73}
     button#btnPng{background:#0b5d48;border-color:#0b5d48}
     button#btnReset{background:#5a3b09;border-color:#5a3b09}
     .stats{display:flex;gap:.8rem;flex-wrap:wrap;margin:.6rem 0}
-    /* Vylepšeno: Základní velikost karty (pro desktop) */
-    .stat{flex:1 1 200px;background:var(--card);border-radius:12px;padding:12px 14px} 
+    .stat{flex:1 1 200px;background:var(--card);border-radius:12px;padding:12px 14px}
     .stat .ttl{font-size:.9rem;color:var(--muted);margin-bottom:.25rem}
     .stat .val{font-size:1.6rem;font-weight:800}
     .stat .sub{margin-top:.15rem;color:var(--muted);font-size:.88rem}
-    .chart-card{background:#fff;border-radius:12px;padding:10px}
+    .chart-card{background:var(--chart-bg);border-radius:12px;padding:10px; transition: background .3s;} 
     canvas{display:block;width:100%;height:420px;max-height:70vh}
-    .bad{color:#ff8484}
+    .bad{color:var(--danger)} 
     #rangeBadge{font-size:.85rem;color:var(--muted)}
     .sensorPills{display:flex;flex-wrap:wrap;gap:.5rem}
-    .pill{background:#0d1320;border:1px solid #263246;color:#cfe7ff;padding:4px 10px;border-radius:999px;font-size:.85rem}
+    .pill{background:var(--bg);border:1px solid var(--muted);color:var(--text);padding:4px 10px;border-radius:999px;font-size:.85rem; transition: background .3s;} 
     
     /* RESPONZIVNÍ ÚPRAVY PRO MOBILY */
     @media (max-width:700px){
       .controls .group{width:100%;justify-content:space-between; flex-wrap: wrap;} 
-      
-      /* NOVÉ: Zajišťuje, že se tlačítka a selecty v druhé skupině zalamují, ale neberou 100% šířky */
       .controls .group:nth-child(2) > * {
           flex-grow: 1; 
           min-width: 120px; 
       }
-      
-      /* NOVÉ: Statistiky se zalamují do dvou sloupců pro lepší využití prostoru */
       .stat{flex:1 1 calc(50% - 0.5rem);} 
-
-      /* ÚPRAVA: Aby se ovládání vlastního rozsahu zalamovalo na menších obrazovkách */
       #customRangeGroup{flex-wrap:wrap}
       #customRangeGroup input{flex:1 1 45%;min-width:140px} 
       canvas{height:360px}
@@ -84,6 +120,13 @@
           <option value="month">Měsíc</option>
           <option value="all">Vše</option>
           <option value="custom">Vlastní</option>
+        </select>
+        
+        <select id="selTheme">
+          <option value="theme-dark" selected>Oceanic Dark</option>
+          <option value="theme-light">Křišťálově bílé</option>
+          <option value="theme-midnight">Noční (Tmavé)</option>
+          <option value="theme-neon">Energetické</option>
         </select>
 
         <div id="customRangeGroup" style="display:none; gap:.6rem;">
@@ -146,11 +189,18 @@
     const $ = sel => document.querySelector(sel);
     const fmt = d => new Date(d).toLocaleString();
 
-    // NOVÉ: Konstanty pro vlastní rozsah (z minulé úpravy)
+    // Konstanty pro ovládání
     const $selRange = $("#selRange");
     const $customGroup = $("#customRangeGroup");
     const $dateFrom = $("#dateFrom");
     const $dateTo = $("#dateTo");
+    const $selTheme = $("#selTheme");
+
+    // NOVÉ: Logika pro načtení uloženého tématu při startu
+    const savedTheme = localStorage.getItem('selectedTheme') || 'theme-dark';
+    document.body.classList.add(savedTheme);
+    // Nastav správnou hodnotu v selectu při startu
+    if ($selTheme) $selTheme.value = savedTheme;
 
     async function fetchJSON(paths) {
       for (const p of paths) {
@@ -217,7 +267,6 @@
       visibleSensors = new Set(ids);
       renderSensorToggles(ids);
 
-      // NOVÉ: Zajistíme správné zobrazení/skrytí polí pro vlastní rozsah
       toggleCustomRangeInputs();
       update();
     }
@@ -239,7 +288,7 @@
       });
     }
     
-    // NOVÉ: Zobrazení/skrytí polí pro vlastní rozsah a nastavení výchozích hodnot
+    // Zobrazení/skrytí polí pro vlastní rozsah a nastavení výchozích hodnot
     function toggleCustomRangeInputs(){
       if ($selRange.value === "custom") {
         $customGroup.style.display = "flex"; // Zobrazit
@@ -248,7 +297,6 @@
             const now = new Date();
             const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
             // Formát pro input[type="datetime-local"] je YYYY-MM-DDTHH:mm
-            // Použijeme zjednodušený UTC formát a převedeme na lokální čas pro input
             const toStr = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
             const fromStr = new Date(startOfDay.getTime() - (startOfDay.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
             $dateFrom.value = fromStr;
@@ -260,7 +308,7 @@
     }
 
 
-    // --- Filtrování dle rozsahu (UPRAVENO pro vlastní rozsah) ---
+    // --- Filtrování dle rozsahu ---
     function filterByRange(rows){
       const range = $selRange.value;
       const badge = $("#rangeBadge");
@@ -287,13 +335,10 @@
           return [];
         }
       }
-      // 3. Logika pro "Vše" ("all") - from je null, to je teď
 
       // Filtr
       const filteredRows = rows.filter(r => {
-        // Záznam musí být >= "Od" (pokud je definováno)
         const afterFrom = from ? r.time.getTime() >= from.getTime() : true;
-        // Záznam musí být <= "Do"
         const beforeTo = r.time.getTime() <= to.getTime();
         return afterFrom && beforeTo;
       });
@@ -306,7 +351,7 @@
       return filteredRows;
     }
 
-    // --- Přepočet statistik + render grafu (UPRAVENO pro více statistik) ---
+    // --- Přepočet statistik + render grafu ---
     function update(){
       const showTemp = $("#chkTemp").checked;
       const showHum  = $("#chkHum").checked;
@@ -317,13 +362,10 @@
       // --- VÝPOČET STATISTIK PRO TEPLOTU ---
       const tRows = rows.filter(r => Number.isFinite(r.temp));
       if (tRows.length) {
-        // Najdi Min/Max
         const minT = tRows.reduce((a,b)=> b.temp < a.temp ? b : a);
         const maxT = tRows.reduce((a,b)=> b.temp > a.temp ? b : a);
-        // Průměr
         const sumT = tRows.reduce((acc, r) => acc + r.temp, 0);
         const avgT = sumT / tRows.length;
-        // Rozsah
         const rangeT = maxT.temp - minT.temp;
 
         $("#minTVal").textContent = `${minT.temp.toFixed(2)} °C`;
@@ -341,13 +383,10 @@
       // --- VÝPOČET STATISTIK PRO VLHKOST ---
       const hRows = rows.filter(r => Number.isFinite(r.hum));
       if (hRows.length) {
-        // Najdi Min/Max
         const minH = hRows.reduce((a,b)=> b.hum < a.hum ? b : a);
         const maxH = hRows.reduce((a,b)=> b.hum > a.hum ? b : a);
-        // Průměr
         const sumH = hRows.reduce((acc, r) => acc + r.hum, 0);
         const avgH = sumH / hRows.length;
-        // Rozsah
         const rangeH = maxH.hum - minH.hum;
 
         $("#minHVal").textContent = `${minH.hum.toFixed(2)} %`;
@@ -363,7 +402,7 @@
       }
 
       // ------------------------------------
-      // --- dataset a drawChart (beze změny) ---
+      // --- dataset a drawChart ---
       // ------------------------------------
       
       // dataset
@@ -403,15 +442,17 @@
       drawChart(datasets);
     }
 
-function drawChart(datasets){
+    function drawChart(datasets){
       const ctx = $("#chart").getContext("2d");
       if (chart) chart.destroy();
 
-      // Pevné nastavení pro mobilní a desktopové zobrazení
       const isMobile = window.innerWidth <= 700;
-      const ticksLimit = isMobile ? 5 : 7; // Méně popisků na ose X na mobilu
-      const legendFontSize = isMobile ? 10 : 12; // Menší písmo legendy na mobilu
-      const titleFontSize = isMobile ? 10 : 12; // Menší písmo popisků os na mobilu
+      const ticksLimit = isMobile ? 5 : 7;
+      const legendFontSize = isMobile ? 10 : 12;
+      const titleFontSize = isMobile ? 10 : 12;
+      
+      // Získej barvu pro text legendy/osy z aktivního CSS tématu
+      const chartLegendTextColor = getComputedStyle(document.body).getPropertyValue('--chart-legend-text').trim() || '#111';
 
       chart = new Chart(ctx, {
         type: "line",
@@ -422,17 +463,16 @@ function drawChart(datasets){
           animation: false,
           interaction: { mode: "nearest", axis: "x", intersect: false },
           layout: {
-            padding: { top: 10, bottom: isMobile ? 0 : 10 } // Trochu méně prostoru pod grafem na mobilu
+            padding: { top: 10, bottom: isMobile ? 0 : 10 }
           },
           scales: {
             x: {
               type: "time",
               time: { tooltipFormat: "dd.MM.yyyy HH:mm", displayFormats: { hour: "HH:mm", day: "d.M." } },
-              // ÚPRAVA: Omezení počtu popisků na ose X pro lepší čitelnost na mobilu
               ticks: { 
                 autoSkip: true, 
                 maxTicksLimit: ticksLimit,
-                color: "#4a4a4a", // Tmavší barva pro lepší kontrast
+                color: chartLegendTextColor,
                 font: { size: titleFontSize }
               },
               grid: { color: "#eee2", drawBorder:false }
@@ -442,25 +482,23 @@ function drawChart(datasets){
               title:{display:true,text:"°C", font: { size: titleFontSize }}, 
               grid:{color:"#eee2"}, 
               suggestedMin: null, suggestedMax: null,
-              // ÚPRAVA: Zvýraznění osy pro Teplotu
-              ticks: { color: "#4a4a4a", font: { size: titleFontSize } }
+              ticks: { color: chartLegendTextColor, font: { size: titleFontSize } }
             },
             yH: { 
               position: "right", 
               title:{display:true,text:"%", font: { size: titleFontSize }}, 
               grid:{drawOnChartArea:false}, 
               suggestedMin: 0, suggestedMax: 100,
-              // ÚPRAVA: Zvýraznění osy pro Vlhkost
-              ticks: { color: "#4a4a4a", font: { size: titleFontSize } }
+              ticks: { color: chartLegendTextColor, font: { size: titleFontSize } }
             }
           },
           plugins: {
             legend: { 
               labels: { 
-                color: "#111", 
+                color: chartLegendTextColor,
                 font:{ weight:"600", size: legendFontSize },
-                boxWidth: isMobile ? 10 : 40, // Menší boxy legendy na mobilu
-                padding: 10 // Menší mezery
+                boxWidth: isMobile ? 10 : 40,
+                padding: 10
               } 
             },
             tooltip: {
@@ -468,9 +506,8 @@ function drawChart(datasets){
                 bodyFont: { size: 11 },
             },
             zoom: {
-              // Zvýšená citlivost pro snazší přiblížení na dotykových zařízeních
               zoom: { wheel:{enabled:true}, pinch:{enabled:true, threshold: 0.1}, mode:"x" },
-              pan:  { enabled:true, mode:"x", threshold: 5 } // Mírně vyšší threshold pro zabránění nechtěnému posunu
+              pan:  { enabled:true, mode:"x", threshold: 5 }
             }
           }
         }
@@ -485,11 +522,23 @@ function drawChart(datasets){
         toggleCustomRangeInputs(); // Přepne zobrazení polí
         update(); // Aktualizuje graf
     });
+    
+    // Akce pro přepínání témat
+    $selTheme.addEventListener("change", (e) => {
+      // 1. Odeber všechny existující třídy témat
+      document.body.className = ''; 
+      // 2. Přidej novou třídu na <body>
+      document.body.classList.add(e.target.value);
+      // 3. Ulož výběr (pro zapamatování)
+      localStorage.setItem('selectedTheme', e.target.value); 
+      // 4. Překresli graf, aby se zohlednily barvy legendy/osy
+      update(); 
+    });
 
     $("#chkTemp").addEventListener("change", update);
     $("#chkHum").addEventListener("change", update);
 
-    // NOVÍ POSLUCHACI pro pole vlastního rozsahu
+    // Posluchači pro pole vlastního rozsahu
     $dateFrom.addEventListener("change", update);
     $dateTo.addEventListener("change", update);
 
