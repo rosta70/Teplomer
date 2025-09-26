@@ -184,7 +184,12 @@
 
   <script>
     // --- Pomocné ---
-    const SENSOR_LABEL = { "4065": "UNI", "2764": "Venek" };
+    // Nyní přidáme popisek "Doma" pro nové SSID
+    const SENSOR_LABEL = { 
+        "UNI": "UNI", 
+        "Venek": "Venek",
+        "Doma": "Doma" // NOVÉ: Popisek pro čidlo "Doma" (source z CSV)
+    };
 
     const $ = sel => document.querySelector(sel);
     const fmt = d => new Date(d).toLocaleString();
