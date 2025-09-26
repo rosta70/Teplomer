@@ -1,137 +1,291 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="cs">
 <head>
-  <meta charset="UTF-8" />
-  <title>Meteo archiv</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.umd.min.js"></script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Meteo archiv – jednoduchý graf</title>
+
+  <!-- Chart.js (bez adapteru; kategorizovaná osa) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.js"></script>
+
   <style>
-    body { font-family: Arial, sans-serif; background: #f4f6f9; margin:0; padding:0; }
-    header { background:#334155; color:white; padding:10px 16px; }
-    h1 { margin:0; font-size:1.2rem; }
-    .wrap { max-width:1100px; margin:0 auto; padding:12px; }
-    .controls { display:flex; flex-wrap:wrap; gap:.6rem; margin-bottom:.8rem; }
-    .group { display:flex; gap:.6rem; align-items:center; background:#fff; padding:6px 10px; border-radius:8px; border:1px solid #ccc; }
-    label { display:flex; align-items:center; gap:.35rem; font-size:.9rem; }
-    input[type="checkbox"] { width:18px; height:18px; }
-    select,input,button { font-size:.9rem; padding:6px 8px; }
-    #customRange { display:none; gap:.6rem; }
-    .stats { display:flex; flex-wrap:wrap; gap:.6rem; margin:.8rem 0; }
-    .stat { flex:1 1 260px; background:#fff; padding:10px; border-radius:8px; border:1px solid #ccc; }
-    .stat .ttl { color:#64748b; font-size:.85rem; margin-bottom:4px; }
-    .stat .val { font-size:1.2rem; font-weight:bold; }
-    .stat .sub { font-size:.8rem; color:#64748b; }
-    .chart-card { background:#fff; padding:10px; border-radius:8px; border:1px solid #ccc; }
-    canvas { width:100%; height:420px; }
-    #rangeBadge { font-size:.85rem; color:#475569; }
+    :root {
+      --bg:#0b1220; --panel:#0e1626; --fg:#e7eef7; --muted:#a5b3c8;
+      --chip:#0f1c36; --chip-b:#2f5fa8;
+    }
+    :root.light {
+      --bg:#f6f8fb; --panel:#ffffff; --fg:#0b1220; --muted:#5c6b82;
+      --chip:#eef2f9; --chip-b:#b9c7e6;
+    }
+    *{box-sizing:border-box}
+    body{margin:24px;font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial;background:var(--bg);color:var(--fg)}
+    .wrap{max-width:1100px;margin:0 auto}
+    h1{margin:0 0 8px}
+    .sub{color:var(--muted);margin-bottom:16px}
+
+    .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+    .chip{background:var(--chip);border:1px solid var(--chip-b);border-radius:10px;padding:8px 10px}
+    .srcs label{margin-right:10px}
+    .chart{background:var(--panel);border:1px solid var(--chip-b);border-radius:14px;padding:12px}
+    canvas{width:100%;height:420px !important}
+    .muted{color:var(--muted)}
+    button{cursor:pointer;border:1px solid var(--chip-b);background:var(--chip);color:var(--fg);border-radius:10px;padding:8px 10px}
+
+    .stats {display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}
+    .stat  {background:var(--chip);border:1px solid var(--chip-b);border-radius:10px;padding:10px}
+    .stat .label{font-size:.9rem;color:var(--muted);margin-bottom:4px}
+    .stat .val{font-weight:600;line-height:1.35}
   </style>
 </head>
 <body>
-  <header><h1>Meteo archiv</h1></header>
   <div class="wrap">
-    <div class="controls">
-      <div class="group">
-        <label><input id="chkTemp" type="checkbox" checked> Teplota (°C)</label>
-        <label><input id="chkHum" type="checkbox" checked> Vlhkost (%)</label>
-      </div>
+    <h1>Meteo archiv</h1>
+    <div class="sub">Zdroj: <code>tmep.cz</code> · CSV z GitHub Pages · levá osa °C, pravá osa %</div>
 
-      <div class="group">
-        <select id="selRange">
-          <option value="today" selected>Dnešek</option>
-          <option value="week">Týden</option>
-          <option value="month">Měsíc</option>
-          <option value="all">Vše</option>
+    <div class="controls">
+      <label class="chip"><input type="checkbox" id="showTemp" checked> Teplota (°C)</label>
+      <label class="chip"><input type="checkbox" id="showHum" checked> Vlhkost (%)</label>
+
+      <div class="chip">
+        Rozsah:
+        <select id="range">
+          <option value="all" selected>Vše</option>
+          <option value="30d">Posledních 30 dní</option>
+          <option value="7d">Posledních 7 dní</option>
+          <option value="today">Dnes</option>
           <option value="custom">Vlastní…</option>
         </select>
-        <select id="selFile"></select>
-        <button id="btnReset">Reset zoom</button>
       </div>
-    </div>
 
-    <div class="controls" id="customRange">
-      <label>Od: <input type="datetime-local" id="fromDate"></label>
-      <label>Do: <input type="datetime-local" id="toDate"></label>
-      <button id="applyRange" type="button">Použít</button>
-    </div>
+      <div class="chip" id="customRange" style="display:none">
+        <label>Od: <input type="date" id="fromDate"></label>
+        <label>Do: <input type="date" id="toDate"></label>
+        <button id="applyRange" type="button">Použít</button>
+      </div>
 
-    <div class="controls">
-      <div id="sensorBox"></div>
-      <span id="rangeBadge"></span>
+      <div class="chip srcs" id="srcToggles" title="Zap/vyp stanice"></div>
+
+      <button id="theme">🌓 Režim</button>
+      <a id="dlCsv" class="muted" href="#" download="history.csv">Stáhnout CSV</a>
     </div>
 
     <div class="stats">
-      <div class="stat"><div class="ttl">Min. teplota</div><div class="val" id="minVal">–</div><div class="sub" id="minInfo">–</div></div>
-      <div class="stat"><div class="ttl">Max. teplota</div><div class="val" id="maxVal">–</div><div class="sub" id="maxInfo">–</div></div>
+      <div class="stat">
+        <div class="label">Min. teplota (vybraný rozsah)</div>
+        <div class="val" id="tmin">–</div>
+      </div>
+      <div class="stat">
+        <div class="label">Max. teplota (vybraný rozsah)</div>
+        <div class="val" id="tmax">–</div>
+      </div>
     </div>
 
-    <div class="chart-card"><canvas id="chart"></canvas></div>
+    <div class="chart">
+      <canvas id="chart"></canvas>
+      <div id="nodata" class="muted" style="padding:10px;display:none">Žádná data pro zvolený filtr.</div>
+    </div>
   </div>
 
 <script>
-const SENSOR_LABEL = { "4065":"UNI", "2764":"Venek" };
-const $ = s=>document.querySelector(s);
-let allRows=[],visibleSensors=new Set(),chart;
+(() => {
+  // ---------- Cesta k CSV (robustně) ----------
+  const repo = location.pathname.split('/').filter(Boolean)[0] || '';
+  const CSV_CANDIDATES = [
+    `/${repo ? repo + '/' : ''}data/history.csv`,
+    'data/history.csv',
+    `/${repo}/docs/data/history.csv`
+  ];
+  const csvLink = document.getElementById('dlCsv');
 
-async function fetchJSON(paths){for(const p of paths){try{const r=await fetch(p,{cache:"no-store"});if(r.ok)return await r.json();}catch{}}throw new Error("index.json nenalezen");}
-async function fetchText(paths){for(const p of paths){try{const r=await fetch(p,{cache:"no-store"});if(r.ok)return await r.text();}catch{}}throw new Error("CSV nenalezeno");}
+  async function loadCsv() {
+    for (const u of CSV_CANDIDATES) {
+      try { const r=await fetch(u,{cache:'no-store'}); if(r.ok){ csvLink.href=u; return await r.text(); } } catch(e){ /* try next */ }
+    }
+    throw new Error('CSV history.csv nebylo nalezeno ve /docs/data/.');
+  }
 
-async function loadIndex(){
-  const files=await fetchJSON(["data/index.json","docs/data/index.json"]);
-  const sel=$("#selFile"); sel.innerHTML="";
-  files.forEach(f=>{const o=document.createElement("option");o.value=f;o.textContent=f;sel.appendChild(o);});
-  if(files.includes("history.csv")) sel.value="history.csv";
-  await loadCSV();
-}
+  // ---------- Pomocné ----------
+  const fmt = (n,d=2)=> (n===null||n===undefined||Number.isNaN(n))?'–':Number(n).toFixed(d);
+  const unique = arr => Array.from(new Set(arr));
+  const by = (a,b)=>a<b?-1:a>b?1:0;
 
-async function loadCSV(){
-  const f=$("#selFile").value;
-  const text=await fetchText([`data/${f}`,`docs/data/${f}`]);
-  const lines=text.trim().split(/\r?\n/);
-  let start=0;if(lines[0].toLowerCase().includes("timestamp"))start=1;
-  allRows=[];for(let i=start;i<lines.length;i++){const [ts,id,t,h]=lines[i].split(",");if(!ts||!id)continue;const time=new Date(ts);allRows.push({time,id,temp:parseFloat(t),hum:parseFloat(h)});}
-  const ids=[...new Set(allRows.map(r=>r.id))].sort();visibleSensors=new Set(ids);renderSensorToggles(ids);update();
-}
+  function parseCsv(text){
+    const lines = text.replace(/\uFEFF/g,'').split(/\r?\n/).filter(l=>l.trim().length>0);
+    const headerIdx = lines.findIndex(l => /^timestamp_iso,/.test(l.trim()));
+    const header = (headerIdx>=0?lines[headerIdx]:lines[0]).split(',');
+    const idxTs = header.indexOf('timestamp_iso');
+    const idxS  = header.indexOf('source'); // může být -1 (starý formát)
+    const idxT  = header.indexOf('temp_c');
+    const idxH  = header.indexOf('humidity_pct');
+    const rows  = (headerIdx>=0?lines.slice(headerIdx+1):lines.slice(1));
 
-function renderSensorToggles(ids){
-  const box=$("#sensorBox");box.innerHTML="";
-  ids.forEach(id=>{const l=document.createElement("label");l.innerHTML=`<input type="checkbox" data-id="${id}" checked> ${SENSOR_LABEL[id]??id}`;l.querySelector("input").addEventListener("change",e=>{if(e.target.checked)visibleSensors.add(id);else visibleSensors.delete(id);update();});box.appendChild(l);});
-}
+    const out=[];
+    for(const l of rows){
+      if(/^timestamp_iso,/.test(l)) continue;
+      const p=l.split(',');
+      if (p.length < (idxS>=0?4:3)) continue;
+      const ts = new Date(p[idxTs]);
+      if (Number.isNaN(ts.getTime())) continue;
+      const src = idxS>=0 ? (p[idxS]||'').trim() : 'default';
+      const tStr=(p[idxT]||'').replace(',','.').trim();
+      const hStr=(p[idxH]||'').replace(',','.').trim();
+      const temp=tStr===''?null:Number(tStr);
+      const hum =hStr===''?null:Number(hStr);
+      if ((temp===null||Number.isNaN(temp)) && (hum===null||Number.isNaN(hum))) continue;
+      out.push({ ts, src:String(src), temp:Number.isNaN(temp)?null:temp, hum:Number.isNaN(hum)?null:hum });
+    }
+    return out.sort((a,b)=>a.ts-b.ts);
+  }
 
-function filterByRange(rows){
-  const range=$("#selRange").value;
-  const now=new Date();let from,to=now;
-  if(range==="today"){from=new Date(now.getFullYear(),now.getMonth(),now.getDate());}
-  else if(range==="week"){from=new Date(now.getTime()-7*864e5);}
-  else if(range==="month"){from=new Date(now.getTime()-31*864e5);}
-  else if(range==="custom"){
-    const fromVal=$("#fromDate").value,toVal=$("#toDate").value;
-    if(fromVal&&toVal){from=new Date(fromVal);to=new Date(toVal);} }
-  const out=rows.filter(r=>(!from||r.time>=from)&&(!to||r.time<=to));
-  $("#rangeBadge").textContent=`Zobrazeno: ${from?from.toLocaleString():"–"} — ${to?to.toLocaleString():"–"}`;
-  return out;
-}
+  function buildLabels(rows){
+    const map=new Map();
+    rows.forEach(r=>{ const L=r.ts.toLocaleString('cs-CZ',{hour12:false}); if(!map.has(L)) map.set(L,r.ts); });
+    return Array.from(map.keys()).sort((a,b)=> by(map.get(a), map.get(b)));
+  }
 
-function update(){
-  const rows=filterByRange(allRows).filter(r=>visibleSensors.has(r.id));
-  const tRows=rows.filter(r=>Number.isFinite(r.temp));
-  if(tRows.length){const min=tRows.reduce((a,b)=>b.temp<a.temp?b:a);const max=tRows.reduce((a,b)=>b.temp>a.temp?b:a);$("#minVal").textContent=`${min.temp.toFixed(2)} °C`;$("#maxVal").textContent=`${max.temp.toFixed(2)} °C`;$("#minInfo").textContent=`${SENSOR_LABEL[min.id]??min.id}, ${min.time.toLocaleString()}`;$("#maxInfo").textContent=`${SENSOR_LABEL[max.id]??max.id}, ${max.time.toLocaleString()}`;}
-  const ids=[...new Set(rows.map(r=>r.id))].sort();const datasets=[];ids.forEach(id=>{const srows=rows.filter(r=>r.id===id);datasets.push({label:`${SENSOR_LABEL[id]??id} (°C)`,data:srows.map(r=>({x:r.time,y:r.temp})),yAxisID:"yT",borderColor:id==="4065"?"#ef4444":"#3b82f6",tension:.2,pointRadius:0});datasets.push({label:`${SENSOR_LABEL[id]??id} (%)`,data:srows.map(r=>({x:r.time,y:r.hum})),yAxisID:"yH",borderColor:id==="4065"?"#f97316":"#22d3ee",tension:.2,pointRadius:0,borderDash:[6,4]});});drawChart(datasets);
-}
+  function rangeFilter(rows, mode, fromDate, toDate){
+    const now=new Date();
+    let from=new Date(0), to=new Date(8640000000000000);
+    if (mode==='today'){ const d0=new Date(now); d0.setHours(0,0,0,0); const d1=new Date(now); d1.setHours(23,59,59,999); from=d0; to=d1; }
+    else if (mode==='7d')  from=new Date(now.getTime()-7*24*3600*1000);
+    else if (mode==='30d') from=new Date(now.getTime()-30*24*3600*1000);
+    else if (mode==='custom'){
+      if (fromDate) from=new Date(fromDate+'T00:00:00');
+      if (toDate)   to  =new Date(toDate  +'T23:59:59');
+    }
+    return rows.filter(r => r.ts>=from && r.ts<=to).sort((a,b)=>a.ts-b.ts);
+  }
 
-function drawChart(datasets){
-  const ctx=$("#chart").getContext("2d");if(chart)chart.destroy();
-  chart=new Chart(ctx,{type:"line",data:{datasets},options:{responsive:true,interaction:{mode:"nearest",axis:"x",intersect:false},scales:{x:{type:"time",time:{tooltipFormat:"dd.MM.yyyy HH:mm"},ticks:{autoSkip:true,maxTicksLimit:7}},yT:{title:{display:true,text:"°C"}},yH:{position:"right",title:{display:true,text:"%"},suggestedMin:0,suggestedMax:100}},plugins:{zoom:{zoom:{wheel:{enabled:true},pinch:{enabled:true},mode:"x"},pan:{enabled:true,mode:"x"}}}});}
+  function makeDatasets(labels, rows, enabledSources, showTemp, showHum){
+    const datasets=[];
+    for(const src of enabledSources){
+      const arr = rows.filter(r=>r.src===src);
+      if (showTemp){
+        const mapT=new Map(arr.map(r=>[ r.ts.toLocaleString('cs-CZ',{hour12:false}), r.temp ]));
+        const dataT = labels.map(L => mapT.has(L)? mapT.get(L): null);
+        datasets.push({ label:`Teplota (°C) – ${src}`, data:dataT, yAxisID:'yT', tension:0.25, spanGaps:true, pointRadius:0 });
+      }
+      if (showHum){
+        const mapH=new Map(arr.map(r=>[ r.ts.toLocaleString('cs-CZ',{hour12:false}), r.hum ]));
+        const dataH = labels.map(L => mapH.has(L)? mapH.get(L): null);
+        datasets.push({ label:`Vlhkost (%) – ${src}`, data:dataH, yAxisID:'yH', tension:0.25, spanGaps:true, pointRadius:0 });
+      }
+    }
+    return datasets;
+  }
 
-$("#selFile").addEventListener("change", loadCSV);
-$("#selRange").addEventListener("change", e=>{if(e.target.value==="custom")$("#customRange").style.display="flex";else $("#customRange").style.display="none";update();});
-$("#applyRange").addEventListener("click", update);
-$("#chkTemp").addEventListener("change", update);
-$("#chkHum").addEventListener("change", update);
-$("#btnReset").addEventListener("click", ()=>chart&&chart.resetZoom());
+  // ---------- DOM prvky ----------
+  const showTempEl = document.getElementById('showTemp');
+  const showHumEl  = document.getElementById('showHum');
+  const rangeEl    = document.getElementById('range');
+  const customWrap = document.getElementById('customRange');
+  const fromEl     = document.getElementById('fromDate');
+  const toEl       = document.getElementById('toDate');
+  const applyBtn   = document.getElementById('applyRange');
+  const togglesEl  = document.getElementById('srcToggles');
+  const themeBtn   = document.getElementById('theme');
+  const ctx        = document.getElementById('chart').getContext('2d');
+  const noDataEl   = document.getElementById('nodata');
+  const tminEl     = document.getElementById('tmin');
+  const tmaxEl     = document.getElementById('tmax');
 
-loadIndex().catch(err=>{console.error(err);alert("Nepodařilo se načíst data (index.json).");});
+  // téma
+  const savedTheme = localStorage.getItem('theme');
+  if (savedTheme==='light') document.documentElement.classList.add('light');
+  themeBtn.addEventListener('click', () => {
+    document.documentElement.classList.toggle('light');
+    localStorage.setItem('theme', document.documentElement.classList.contains('light')?'light':'dark');
+  });
+
+  let chart, RAW=[], sources=[], enabledSrc={}, currentRange='all', currentFrom='', currentTo='';
+
+  // načíst CSV a spustit
+  loadCsv()
+    .then(text => {
+      RAW = parseCsv(text);
+      sources = unique(RAW.map(r=>r.src)).sort();
+      togglesEl.innerHTML = '';
+      sources.forEach(src => {
+        enabledSrc[src]=true;
+        const id='src_'+src.replace(/\W/g,'_');
+        const lbl=document.createElement('label'); lbl.className='chip';
+        lbl.innerHTML = `<input type="checkbox" id="${id}" data-src="${src}" checked> Stanice ${src}`;
+        lbl.addEventListener('change', e => { enabledSrc[src] = e.target.checked; redraw(); });
+        togglesEl.appendChild(lbl);
+      });
+      redraw();
+    })
+    .catch(err => { console.error(err); alert('Nepodařilo se načíst data (CSV). Ujisti se, že je v /docs/data/history.csv.'); });
+
+  // ovládání
+  showTempEl.addEventListener('change', redraw);
+  showHumEl .addEventListener('change', redraw);
+  rangeEl   .addEventListener('change', () => {
+    currentRange = rangeEl.value;
+    customWrap.style.display = (currentRange === 'custom') ? 'inline-flex' : 'none';
+    if (currentRange !== 'custom') { currentFrom=''; currentTo=''; fromEl.value=''; toEl.value=''; }
+    redraw();
+  });
+  applyBtn  .addEventListener('click', () => {
+    currentFrom = fromEl.value || '';
+    currentTo   = toEl.value   || '';
+    redraw();
+  });
+
+  function updateExtremes(rows){
+    const tRows = rows.filter(r=>r.temp!==null && !Number.isNaN(r.temp));
+    if (!tRows.length) { tminEl.textContent='–'; tmaxEl.textContent='–'; return; }
+    const minR = tRows.reduce((m,r)=> r.temp < m.temp ? r : m, tRows[0]);
+    const maxR = tRows.reduce((m,r)=> r.temp > m.temp ? r : m, tRows[0]);
+    tminEl.textContent = `${minR.temp.toFixed(2)} °C — ${minR.ts.toLocaleString('cs-CZ',{hour12:false})} (stanice ${minR.src})`;
+    tmaxEl.textContent = `${maxR.temp.toFixed(2)} °C — ${maxR.ts.toLocaleString('cs-CZ',{hour12:false})} (stanice ${maxR.src})`;
+  }
+
+  function redraw(){
+    const enabled = sources.filter(s => enabledSrc[s]);
+    const filtered = rangeFilter(RAW, currentRange, currentFrom, currentTo).filter(r => enabled.includes(r.src));
+    const labels   = buildLabels(filtered);
+    const datasets = makeDatasets(labels, filtered, enabled, showTempEl.checked, showHumEl.checked);
+
+    // Extrémy teploty (za aktuální filtr + vybrané stanice)
+    updateExtremes(filtered);
+
+    // když není co vykreslit
+    const hasData = datasets.some(ds => ds.data.some(v => v !== null));
+    if (!labels.length || !hasData){
+      if (chart){ chart.destroy(); chart=null; }
+      noDataEl.style.display='block';
+      return;
+    } else {
+      noDataEl.style.display='none';
+    }
+
+    // dynamický rozsah teploty
+    const tVals = datasets.filter(d=>d.yAxisID==='yT').flatMap(d=>d.data).filter(v=>v!==null&&!Number.isNaN(v));
+    const tMin  = tVals.length? Math.min(...tVals) : undefined;
+    const tMax  = tVals.length? Math.max(...tVals) : undefined;
+    const yTopt = (tMin!==undefined && tMax!==undefined) ? {
+      suggestedMin: tMin - Math.abs(tMax - tMin)*0.1,
+      suggestedMax: tMax + Math.abs(tMax - tMin)*0.1
+    } : {};
+
+    if (chart) chart.destroy();
+    chart = new Chart(ctx, {
+      type:'line',
+      data:{ labels, datasets },
+      options:{
+        responsive:true, maintainAspectRatio:false, animation:false,
+        interaction:{ mode:'index', intersect:false },
+        scales:{
+          x:{ ticks:{ autoSkip:true, maxRotation:0 } },
+          yT:{ title:{display:true, text:'°C'}, grid:{drawBorder:false}, ...yTopt },
+          yH:{ position:'right', title:{display:true, text:'%'}, grid:{drawOnChartArea:false}, suggestedMin:0, suggestedMax:100 }
+        },
+        plugins:{ legend:{ position:'top' } }
+      }
+    });
+  }
+})();
 </script>
 </body>
 </html>
