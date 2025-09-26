@@ -26,7 +26,8 @@
     .controls .group{display:flex;gap:.6rem;align-items:center;background:var(--card);padding:8px 10px;border-radius:10px}
     label{display:inline-flex;gap:.35rem;align-items:center;cursor:pointer;font-size:.95rem}
     input[type="checkbox"]{width:18px;height:18px;accent-color:var(--accent)}
-    select,button{background:#111722;color:var(--text);border:1px solid #223047;border-radius:10px;padding:8px 10px;font-size:.95rem}
+    /* UPRAVENO: Přidán input[type="datetime-local"] pro stylování polí pro vlastní rozsah */
+    select,button,input[type="datetime-local"]{background:#111722;color:var(--text);border:1px solid #223047;border-radius:10px;padding:8px 10px;font-size:.95rem}
     button.icon{display:inline-flex;gap:.4rem;align-items:center}
     button#btnCsv{background:#0b3b73;border-color:#0b3b73}
     button#btnPng{background:#0b5d48;border-color:#0b5d48}
@@ -44,6 +45,9 @@
     .pill{background:#0d1320;border:1px solid #263246;color:#cfe7ff;padding:4px 10px;border-radius:999px;font-size:.85rem}
     @media (max-width:700px){
       .controls .group{width:100%;justify-content:space-between}
+      /* ÚPRAVA: Aby se ovládání vlastního rozsahu zalamovalo na menších obrazovkách */
+      #customRangeGroup{flex-wrap:wrap}
+      #customRangeGroup input{flex:1 1 45%;min-width:140px} 
       canvas{height:360px}
     }
   </style>
@@ -55,7 +59,6 @@
   </header>
 
   <div class="wrap">
-    <!-- Ovládání -->
     <div class="controls">
       <div class="group">
         <label><input id="chkTemp" type="checkbox" checked> Teplota (°C)</label>
@@ -68,7 +71,13 @@
           <option value="week">Týden</option>
           <option value="month">Měsíc</option>
           <option value="all">Vše</option>
+          <option value="custom">Vlastní</option>
         </select>
+
+        <div id="customRangeGroup" style="display:none; gap:.6rem;">
+          <input type="datetime-local" id="dateFrom" title="Datum a čas Od">
+          <input type="datetime-local" id="dateTo" title="Datum a čas Do">
+        </div>
 
         <select id="selFile"></select>
 
@@ -83,7 +92,6 @@
       <span id="rangeBadge"></span>
     </div>
 
-    <!-- Stat karty -->
     <div class="stats">
       <div class="stat">
         <div class="ttl">Min. teplota</div>
@@ -97,7 +105,6 @@
       </div>
     </div>
 
-    <!-- Graf -->
     <div class="chart-card"><canvas id="chart"></canvas></div>
   </div>
 
@@ -107,6 +114,12 @@
 
     const $ = sel => document.querySelector(sel);
     const fmt = d => new Date(d).toLocaleString();
+
+    // NOVÉ: Konstanty pro vlastní rozsah
+    const $selRange = $("#selRange");
+    const $customGroup = $("#customRangeGroup");
+    const $dateFrom = $("#dateFrom");
+    const $dateTo = $("#dateTo");
 
     async function fetchJSON(paths) {
       for (const p of paths) {
@@ -173,6 +186,8 @@
       visibleSensors = new Set(ids);
       renderSensorToggles(ids);
 
+      // NOVÉ: Zajistíme správné zobrazení/skrytí polí pro vlastní rozsah
+      toggleCustomRangeInputs();
       update();
     }
 
@@ -192,24 +207,72 @@
         box.appendChild(pill);
       });
     }
+    
+    // NOVÉ: Zobrazení/skrytí polí pro vlastní rozsah a nastavení výchozích hodnot
+    function toggleCustomRangeInputs(){
+      if ($selRange.value === "custom") {
+        $customGroup.style.display = "flex"; // Zobrazit
+        // Nastavíme výchozí hodnoty (dnešek) pokud nejsou nastavené
+        if (!$dateFrom.value || !$dateTo.value) {
+            const now = new Date();
+            const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            // Formát pro input[type="datetime-local"] je YYYY-MM-DDTHH:mm
+            // Použijeme zjednodušený UTC formát a převedeme na lokální čas pro input
+            const toStr = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
+            const fromStr = new Date(startOfDay.getTime() - (startOfDay.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
+            $dateFrom.value = fromStr;
+            $dateTo.value = toStr;
+        }
+      } else {
+        $customGroup.style.display = "none"; // Skrýt
+      }
+    }
 
-    // --- Filtrování dle rozsahu ---
+
+    // --- Filtrování dle rozsahu (UPRAVENO pro vlastní rozsah) ---
     function filterByRange(rows){
-      const range = $("#selRange").value;
-      if (range === "all") return rows;
-
-      const now = new Date();
-      let from;
-      if (range === "today") from = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      else if (range === "week") from = new Date(now.getTime() - 7*24*3600*1000);
-      else if (range === "month") from = new Date(now.getTime() - 31*24*3600*1000);
-
-      const out = rows.filter(r => r.time >= from);
+      const range = $selRange.value;
       const badge = $("#rangeBadge");
-      const toStr = now.toLocaleString();
+      
+      let from = null;
+      let to = new Date(); 
+
+      // 1. Logika pro rychlé volby
+      if (range !== "custom" && range !== "all") {
+        const now = new Date();
+        if (range === "today") from = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        else if (range === "week") from = new Date(now.getTime() - 7*24*3600*1000);
+        else if (range === "month") from = new Date(now.getTime() - 31*24*3600*1000);
+        
+      } 
+      // 2. Logika pro vlastní rozsah ("custom")
+      else if (range === "custom") {
+        from = $dateFrom.value ? new Date($dateFrom.value) : null;
+        to = $dateTo.value ? new Date($dateTo.value) : new Date();
+        
+        // Kontrola platnosti dat pro custom rozsah
+        if (!from || Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
+          badge.textContent = "Zobrazeno: Neplatný vlastní rozsah";
+          return [];
+        }
+      }
+      // 3. Logika pro "Vše" ("all") - from je null, to je teď
+
+      // Filtr
+      const filteredRows = rows.filter(r => {
+        // Záznam musí být >= "Od" (pokud je definováno)
+        const afterFrom = from ? r.time.getTime() >= from.getTime() : true;
+        // Záznam musí být <= "Do"
+        const beforeTo = r.time.getTime() <= to.getTime();
+        return afterFrom && beforeTo;
+      });
+      
+      // Aktualizace badge
+      const toStr = to.toLocaleString();
       const fromStr = from ? from.toLocaleString() : "—";
       badge.textContent = `Zobrazeno: ${fromStr} — ${toStr}`;
-      return out;
+      
+      return filteredRows;
     }
 
     // --- Přepočet statistik + render grafu ---
@@ -304,11 +367,21 @@
       });
     }
 
-    // --- Akce ---
+    // --- Akce (UPRAVENO pro vlastní rozsah) ---
     $("#selFile").addEventListener("change", loadCSV);
-    $("#selRange").addEventListener("change", update);
+    
+    // Sloučíme akce pro selRange
+    $selRange.addEventListener("change", ()=>{
+        toggleCustomRangeInputs(); // Přepne zobrazení polí
+        update(); // Aktualizuje graf
+    });
+
     $("#chkTemp").addEventListener("change", update);
     $("#chkHum").addEventListener("change", update);
+
+    // NOVÍ POSLUCHAČI pro pole vlastního rozsahu
+    $dateFrom.addEventListener("change", update);
+    $dateTo.addEventListener("change", update);
 
     $("#btnReset").addEventListener("click", ()=> chart && chart.resetZoom());
     $("#btnCsv").addEventListener("click", ()=> {
