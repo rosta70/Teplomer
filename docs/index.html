@@ -75,6 +75,13 @@
     .chart-container{padding:14px 0;}
     .custom-range-inputs{display:none;gap:12px;margin-top:12px;}
     .error-message{color:var(--danger);padding:10px;background:rgba(244,63,94,.1);border-radius:6px;border:1px solid var(--danger);margin-top:1rem;display:none;}
+    
+    /* NOVÉ TŘÍDY PRO ZVÝRAZNĚNÍ STATISTIK */
+    .stat-max-temp{color: var(--danger); font-weight: 600;}
+    .stat-min-temp{color: var(--info); font-weight: 600;}
+    .stat-max-hum{color: var(--accent);} 
+    .stat-min-hum{color: var(--muted);} 
+
   </style>
 </head>
 <body class="theme-dark">
@@ -163,7 +170,7 @@
             temp: "#059669",   // Tmavě zelená (Doma Teplota)
             hum:  "#6ee7b7"    // Světle zelená (Doma Vlhkost)
         },
-        "Terasa": { 
+        "Terasa": { // Příklad pro budoucí senzor
             temp: "#a855f7",   // Fialová (Terasa Teplota)
             hum:  "#d8b4fe"    // Světle fialová (Terasa Vlhkost)
         }
@@ -191,7 +198,7 @@
         // Používáme nejjednodušší relativní cestu, protože index.html je v docs/
         const r = await fetch(`data/${file}`); 
         if (!r.ok) {
-          // Pokud selže jednoduchá cesta, zkusíme záložní cestu (pro repozitáře, kde je web spuštěn z kořene)
+          // Pokud selže jednoduchá cesta, zkusíme záložní cestu
           const backupR = await fetch(`docs/data/${file}`);
           if (backupR.ok) {
               return loadIndexFromResponse(backupR);
@@ -233,13 +240,16 @@
       try {
         const r = await fetch(fileUrl);
         if (!r.ok) {
+          // Zkusíme záložní cestu pro CSV, pokud selže
+          const backupUrl = `docs/data/${f}`;
+          const backupR = await fetch(backupUrl);
+          if (backupR.ok) {
+              return loadCSVFromResponse(backupR);
+          }
           throw new Error(`Soubor ${fileUrl} nenalezen (Status: ${r.status}).`);
         }
-        const csvText = await r.text();
-        data = parseCSV(csvText);
         
-        renderSensorToggles(data);
-        update(); 
+        return loadCSVFromResponse(r);
 
       } catch (err) {
         $("#errorMessage").textContent = `Chyba při načítání dat: ${err.message}`;
@@ -247,6 +257,15 @@
         data = []; // Vyčistit data při chybě
         update();
       }
+    }
+
+    // Pomocná funkce pro zpracování odpovědi CSV
+    async function loadCSVFromResponse(response) {
+        const csvText = await response.text();
+        data = parseCSV(csvText);
+        
+        renderSensorToggles(data);
+        update();
     }
     
     // Zpracování CSV dat
@@ -398,8 +417,8 @@
                 <div class="stat-title">TEPLOTA</div>
                 <div class="stat-value stat-temp">${s.lastTemp?.toFixed(2) ?? '—'} °C</div>
                 <div class="stat-group">
-                    <div class="stat-detail stat-temp">Min: ${s.minTemp.temp.toFixed(2)} °C <span style="font-size: 0.75rem">(${formatTime(s.minTemp.time)})</span></div>
-                    <div class="stat-detail stat-temp">Max: ${s.maxTemp.temp.toFixed(2)} °C <span style="font-size: 0.75rem">(${formatTime(s.maxTemp.time)})</span></div>
+                    <div class="stat-detail stat-min-temp">Min: ${s.minTemp.temp.toFixed(2)} °C <span style="font-size: 0.75rem">(${formatTime(s.minTemp.time)})</span></div>
+                    <div class="stat-detail stat-max-temp">Max: ${s.maxTemp.temp.toFixed(2)} °C <span style="font-size: 0.75rem">(${formatTime(s.maxTemp.time)})</span></div>
                 </div>
                 <div class="stat-title" style="margin-top: 5px;">Průměr: ${s.avgTemp.toFixed(2)} °C</div>
             `;
@@ -412,8 +431,8 @@
                 <div class="stat-title">VLHKOST</div>
                 <div class="stat-value stat-hum">${s.lastHum?.toFixed(2) ?? '—'} %</div>
                 <div class="stat-group">
-                    <div class="stat-detail stat-hum">Min: ${s.minHum.hum.toFixed(2)} % <span style="font-size: 0.75rem">(${formatTime(s.minHum.time)})</span></div>
-                    <div class="stat-detail stat-hum">Max: ${s.maxHum.hum.toFixed(2)} % <span style="font-size: 0.75rem">(${formatTime(s.maxHum.time)})</span></div>
+                    <div class="stat-detail stat-min-hum">Min: ${s.minHum.hum.toFixed(2)} % <span style="font-size: 0.75rem">(${formatTime(s.minHum.time)})</span></div>
+                    <div class="stat-detail stat-max-hum">Max: ${s.maxHum.hum.toFixed(2)} % <span style="font-size: 0.75rem">(${formatTime(s.maxHum.time)})</span></div>
                 </div>
                 <div class="stat-title" style="margin-top: 5px;">Průměr: ${s.avgHum.toFixed(2)} %</div>
             `;
@@ -469,7 +488,9 @@
     function drawChart(datasets) {
       const isDarkMode = document.body.classList.contains("theme-dark");
       const chartTextColor = isDarkMode ? 'var(--text)' : 'var(--chart-legend-text)';
-      const gridColor = isDarkMode ? '#222' : '#ddd';
+      
+      // UPRAVENO: Místo pevné barvy mřížky použijeme velmi tmavou, ale průhlednou barvu pro tmavý režim
+      const gridColor = isDarkMode ? 'rgba(255, 255, 255, 0.08)' : '#ddd'; // Nyní velmi jemná bílá pro dark mode
 
       const config = {
         type: "line",
@@ -499,6 +520,12 @@
         chart.options.scales.yT.ticks.color = chartTextColor;
         chart.options.scales.yH.ticks.color = chartTextColor;
         chart.options.plugins.legend.labels.color = chartTextColor;
+        
+        // Aktualizace mřížky v existujícím grafu
+        chart.options.scales.x.grid.color = gridColor;
+        chart.options.scales.yT.grid.color = gridColor;
+        chart.options.scales.yH.grid.color = gridColor; 
+
         chart.update();
       } else {
         chart = new Chart($("#meteoChart"), config);
