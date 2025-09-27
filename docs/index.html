@@ -17,8 +17,8 @@
       --accent: #2dd4bf;
       --danger: #f43f5e;
       --info: #60a5fa;
-      --chart-bg: #fff; /* Barva pozadí grafu */
-      --chart-legend-text: #111; /* Barva textu legendy */
+      --chart-bg: #171a21; /* ZMĚNA: Tmavé pozadí grafu */
+      --chart-legend-text: #e7edf4; /* ZMĚNA: Světlý text pro tmavé pozadí */
     }
 
     /* Téma 2: Křišťálově bílé (Crystal Light) */
@@ -43,8 +43,8 @@
       --accent: #22c55e;
       --danger: #ef4444;
       --info: #3b82f6;
-      --chart-bg: #fff;
-      --chart-legend-text: #111;
+      --chart-bg: #111111; /* ZMĚNA: Tmavé pozadí grafu */
+      --chart-legend-text: #ffffff; /* ZMĚNA: Světlý text pro tmavé pozadí */
     }
 
 
@@ -486,11 +486,11 @@
 
 
     function drawChart(datasets) {
-      const isDarkMode = document.body.classList.contains("theme-dark");
+      const isDarkMode = document.body.classList.contains("theme-dark") || document.body.classList.contains("theme-mono");
       const chartTextColor = isDarkMode ? 'var(--text)' : 'var(--chart-legend-text)';
       
       // UPRAVENO: Místo pevné barvy mřížky použijeme velmi tmavou, ale průhlednou barvu pro tmavý režim
-      const gridColor = isDarkMode ? 'rgba(255, 255, 255, 0.08)' : '#ddd'; // Nyní velmi jemná bílá pro dark mode
+      const gridColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : '#ddd'; // Nyní velmi jemná bílá pro dark mode
 
       const config = {
         type: "line",
