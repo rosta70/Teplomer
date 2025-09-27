@@ -146,7 +146,7 @@
         
         /* Selektory a Inputy se roztáhnou a vyplní řádek rovnoměrně */
         .controls-group select,
-        .controls-group input[type=date],
+        .controls-group input[type=datetime-local],
         .controls-group input[type=text],
         .controls-group .custom-range-inputs input {
             flex-grow: 1; 
@@ -416,7 +416,7 @@
     }
 
 
-// Filtrování dat na základě rozsahu (OPRAVENO: Podpora datetime-local)
+    // Filtrování dat na základě rozsahu (OPRAVENO: Podpora datetime-local)
     function filterData(data) {
       if (data.length === 0) return [];
       
@@ -466,7 +466,7 @@
           if (!isNaN(hour)) {
               // Nastavíme konec rozsahu na DNEŠNÍ den a zvolenou hodinu
               endDate = new Date(startDate.getTime()); // Kopírujeme datum (začátek dneška)
-              endDate.setHours(hour, 59, 59, 999); 
+              endDate.setHours(hour, 59, 59, 999); // Nastavíme hodinu a konec minuty
           }
       }
 
@@ -523,6 +523,12 @@
       
       const showTemp = $("#chkTemp").checked;
       const showHum = $("#chkHum").checked;
+      
+      // Zjistíme aktuální rozsah pro dynamické zobrazení titulku
+      const range = $selRange.value;
+      const isCurrentTime = range === 'today' || range === 'yesterday';
+      const mainTitle = isCurrentTime ? 'Aktuální' : 'Průměr';
+
 
       for (const id in stats) {
         const s = stats[id];
@@ -530,32 +536,35 @@
         card.classList.add("stat-card");
         
         // ÚVOD: Jméno senzoru a čas posledního záznamu
-        let content = `<div class="stat-title">${s.name} (Aktuální: ${s.lastTime})</div><hr style="border-color:var(--muted);margin:10px 0;opacity:0.2"/>`;
+        let content = `<div class="stat-title">${s.name} (${mainTitle}: ${s.lastTime})</div><hr style="border-color:var(--muted);margin:10px 0;opacity:0.2"/>`;
 
         // --- Zobrazení Teploty ---
         if (showTemp && s.maxTemp) {
+            // Zobrazujeme Průměr/Aktuální v závislosti na rozsahu
+            const tempValue = isCurrentTime ? s.lastTemp?.toFixed(2) : s.avgTemp.toFixed(2);
             content += `
                 <div class="stat-title">TEPLOTA</div>
-                <div class="stat-value stat-temp">${s.lastTemp?.toFixed(2) ?? '—'} °C</div>
+                <div class="stat-value stat-temp">${tempValue ?? '—'} °C</div>
                 <div class="stat-group">
                     <div class="stat-detail stat-min-temp">Min: ${s.minTemp.temp.toFixed(2)} °C <span style="font-size: 0.75rem">(${formatTime(s.minTemp.time)})</span></div>
                     <div class="stat-detail stat-max-temp">Max: ${s.maxTemp.temp.toFixed(2)} °C <span style="font-size: 0.75rem">(${formatTime(s.maxTemp.time)})</span></div>
                 </div>
-                <div class="stat-title" style="margin-top: 5px;">Průměr: ${s.avgTemp.toFixed(2)} °C</div>
+                ${!isCurrentTime ? `<div class="stat-title" style="margin-top: 5px;">Aktuální: ${s.lastTemp?.toFixed(2) ?? '—'} °C</div>` : ''}
             `;
         }
 
         // --- Zobrazení Vlhkosti ---
         if (showHum && s.maxHum) {
+             const humValue = isCurrentTime ? s.lastHum?.toFixed(2) : s.avgHum.toFixed(2);
              content += `<hr style="border-color:var(--muted);margin:10px 0;opacity:0.2"/>`;
              content += `
                 <div class="stat-title">VLHKOST</div>
-                <div class="stat-value stat-hum">${s.lastHum?.toFixed(2) ?? '—'} %</div>
+                <div class="stat-value stat-hum">${humValue ?? '—'} %</div>
                 <div class="stat-group">
                     <div class="stat-detail stat-min-hum">Min: ${s.minHum.hum.toFixed(2)} % <span style="font-size: 0.75rem">(${formatTime(s.minHum.time)})</span></div>
                     <div class="stat-detail stat-max-hum">Max: ${s.maxHum.hum.toFixed(2)} % <span style="font-size: 0.75rem">(${formatTime(s.maxHum.time)})</span></div>
                 </div>
-                <div class="stat-title" style="margin-top: 5px;">Průměr: ${s.avgHum.toFixed(2)} %</div>
+                ${!isCurrentTime ? `<div class="stat-title" style="margin-top: 5px;">Aktuální: ${s.lastHum?.toFixed(2) ?? '—'} %</div>` : ''}
             `;
         }
         
@@ -638,13 +647,13 @@
             zoom: {
               zoom: { 
                   wheel:{enabled:true}, 
-                  pinch:{enabled:true, threshold: 0.05}, // Zvýšená citlivost pro snazší PINCH-TO-ZOOM
+                  pinch:{enabled:true, threshold: 0.05}, 
                   mode:"x" 
               },
               pan:  { 
                   enabled:true, 
                   mode:"x",
-                  threshold: 5 // Větší práh, aby se pan (posun) neaktivoval při scrollu stránky
+                  threshold: 5 
               }
             }
           }
@@ -652,16 +661,22 @@
       };
 
       if (chart) {
-        // ... (Kód pro aktualizaci existujícího grafu)
+        chart.data.datasets = datasets;
+        
+        // Nastavení barvy titulku os
         chart.options.scales.yT.title.color = chartTextColor;
         chart.options.scales.yH.title.color = chartTextColor;
+        
         chart.options.scales.x.ticks.color = chartTextColor;
         chart.options.scales.yT.ticks.color = chartTextColor;
         chart.options.scales.yH.ticks.color = chartTextColor;
         chart.options.plugins.legend.labels.color = chartTextColor;
+        
+        // Aktualizace mřížky v existujícím grafu
         chart.options.scales.x.grid.color = gridColor;
         chart.options.scales.yT.grid.color = gridColor;
         chart.options.scales.yH.grid.color = gridColor; 
+
         chart.update();
       } else {
         chart = new Chart($("#meteoChart"), config);
@@ -776,8 +791,6 @@
     $selJumpTime.addEventListener("change", (e) => {
         // Graf i statistiky se aktualizují, protože filterData ořízne konec dat na zvolenou hodinu
         update(); 
-        
-        // Hodnota se NENÍ resetuje, aby zůstala vybraná hodina viditelná v selectu
     });
 
     // Akce pro přepínání témat
