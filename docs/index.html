@@ -19,6 +19,7 @@
       --info: #60a5fa;
       --chart-bg: #171a21; 
       --chart-legend-text: #e7edf4; 
+      --warning: #facc15; /* NOVÉ: Žlutá pro průměry */
     }
 
     /* Téma 2: Křišťálově bílé (Crystal Light) */
@@ -32,6 +33,7 @@
       --info: #3b82f6;
       --chart-bg: #f5f5f5;
       --chart-legend-text: #111;
+      --warning: #eab308; /* NOVÉ: Žlutá pro průměry */
     }
 
     /* Téma 3: Černá a Bílá (Monochrome) */
@@ -45,6 +47,7 @@
       --info: #3b82f6;
       --chart-bg: #111111; 
       --chart-legend-text: #ffffff; 
+      --warning: #facc15; /* NOVÉ: Žlutá pro průměry */
     }
 
 
@@ -100,7 +103,7 @@
     .controls{display:flex;flex-wrap:wrap;gap:12px;padding:14px 0;border-bottom:1px solid var(--card);}
     .controls-group{display:flex;gap:12px;flex-wrap:wrap;align-items:center;}
     .controls label{display:flex;gap:6px;align-items:center;}
-    select, input[type=date]{background:var(--card);color:var(--text);border:1px solid #333;padding:6px 10px;border-radius:6px;}
+    select, input[type=datetime-local]{background:var(--card);color:var(--text);border:1px solid #333;padding:6px 10px;border-radius:6px;}
     button{background:var(--card);color:var(--text);border:1px solid #333;padding:6px 10px;border-radius:6px;cursor:pointer;transition:background .1s;}
     button:hover{background:#333;}
     /* UPRAVENO: Grid pro statistiky a jejich karty */
@@ -111,15 +114,14 @@
     .stat-value{font-size:1.5rem;font-weight:700;}
     .stat-group{display:flex;justify-content:space-between;align-items:baseline;margin-top:6px; flex-wrap: wrap;}
     .stat-detail{color:var(--muted); font-size: .85rem;}
+    
+    /* Původní barvy (pro aktuální data) */
     .stat-temp{color:var(--danger);}
     .stat-hum{color:var(--info);}
-    .toggles{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0;}
-    .toggle{padding:4px 10px;border-radius:20px;font-size:.9rem;cursor:pointer;background:var(--card);border:1px solid #333;transition:background .1s;}
-    .toggle.active{background:var(--accent);border-color:var(--accent);color:var(--bg);font-weight:600;}
-    .chart-container{padding:14px 0;}
-    .custom-range-inputs{display:none;gap:12px;margin-top:12px;}
-    .error-message{color:var(--danger);padding:10px;background:rgba(244,63,94,.1);border-radius:6px;border:1px solid var(--danger);margin-top:1rem;display:none;}
     
+    /* NOVÉ: ŽLUTÁ pro PRŮMĚRY */
+    .stat-avg{color: var(--warning); font-weight: 700;} 
+
     /* TŘÍDY PRO ZVÝRAZNĚNÍ STATISTIK */
     .stat-max-temp{color: var(--danger); font-weight: 600;}
     .stat-min-temp{color: var(--info); font-weight: 600;}
@@ -526,8 +528,9 @@
       
       // Zjistíme aktuální rozsah pro dynamické zobrazení titulku
       const range = $selRange.value;
+      // Změněno: "Včera" je nyní také považováno za "Aktuální/poslední" pro primární hodnotu
       const isCurrentTime = range === 'today' || range === 'yesterday';
-      const mainTitle = isCurrentTime ? 'Aktuální' : 'Průměr';
+      const mainTitle = isCurrentTime ? 'Aktuální' : 'Průměrná';
 
 
       for (const id in stats) {
@@ -542,29 +545,36 @@
         if (showTemp && s.maxTemp) {
             // Zobrazujeme Průměr/Aktuální v závislosti na rozsahu
             const tempValue = isCurrentTime ? s.lastTemp?.toFixed(2) : s.avgTemp.toFixed(2);
+            // Barva pro hlavní hodnotu: Červená pro aktuální, Žlutá pro průměrnou
+            const tempColorClass = isCurrentTime ? 'stat-temp' : 'stat-avg';
+            
             content += `
                 <div class="stat-title">TEPLOTA</div>
-                <div class="stat-value stat-temp">${tempValue ?? '—'} °C</div>
+                <div class="stat-value ${tempColorClass}">${tempValue ?? '—'} °C</div>
                 <div class="stat-group">
                     <div class="stat-detail stat-min-temp">Min: ${s.minTemp.temp.toFixed(2)} °C <span style="font-size: 0.75rem">(${formatTime(s.minTemp.time)})</span></div>
                     <div class="stat-detail stat-max-temp">Max: ${s.maxTemp.temp.toFixed(2)} °C <span style="font-size: 0.75rem">(${formatTime(s.maxTemp.time)})</span></div>
                 </div>
-                ${!isCurrentTime ? `<div class="stat-title" style="margin-top: 5px;">Aktuální: ${s.lastTemp?.toFixed(2) ?? '—'} °C</div>` : ''}
+                ${!isCurrentTime ? `<div class="stat-title" style="margin-top: 5px;">Aktuální: ${s.lastTemp?.toFixed(2) ?? '—'} °C</div>` : 
+                                 `<div class="stat-title" style="margin-top: 5px;">Průměrná: ${s.avgTemp.toFixed(2)} °C</div>`}
             `;
         }
 
         // --- Zobrazení Vlhkosti ---
         if (showHum && s.maxHum) {
              const humValue = isCurrentTime ? s.lastHum?.toFixed(2) : s.avgHum.toFixed(2);
+             const humColorClass = isCurrentTime ? 'stat-hum' : 'stat-avg';
+
              content += `<hr style="border-color:var(--muted);margin:10px 0;opacity:0.2"/>`;
              content += `
                 <div class="stat-title">VLHKOST</div>
-                <div class="stat-value stat-hum">${humValue ?? '—'} %</div>
+                <div class="stat-value ${humColorClass}">${humValue ?? '—'} %</div>
                 <div class="stat-group">
                     <div class="stat-detail stat-min-hum">Min: ${s.minHum.hum.toFixed(2)} % <span style="font-size: 0.75rem">(${formatTime(s.minHum.time)})</span></div>
                     <div class="stat-detail stat-max-hum">Max: ${s.maxHum.hum.toFixed(2)} % <span style="font-size: 0.75rem">(${formatTime(s.maxHum.time)})</span></div>
                 </div>
-                ${!isCurrentTime ? `<div class="stat-title" style="margin-top: 5px;">Aktuální: ${s.lastHum?.toFixed(2) ?? '—'} %</div>` : ''}
+                ${!isCurrentTime ? `<div class="stat-title" style="margin-top: 5px;">Aktuální: ${s.lastHum?.toFixed(2) ?? '—'} %</div>` : 
+                                 `<div class="stat-title" style="margin-top: 5px;">Průměrná: ${s.avgHum.toFixed(2)} %</div>`}
             `;
         }
         
@@ -791,6 +801,8 @@
     $selJumpTime.addEventListener("change", (e) => {
         // Graf i statistiky se aktualizují, protože filterData ořízne konec dat na zvolenou hodinu
         update(); 
+        
+        // Hodnota se NENÍ resetuje, aby zůstala vybraná hodina viditelná v selectu
     });
 
     // Akce pro přepínání témat
