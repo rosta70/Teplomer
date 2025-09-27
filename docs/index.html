@@ -213,8 +213,8 @@
         </select>
         
         <div id="customRangeInputs" class="custom-range-inputs">
-          <input type="date" id="dateFrom" title="Datum od" />
-          <input type="date" id="dateTo" title="Datum do" />
+          <input type="datetime-local" id="dateFrom" title="Datum a čas Od" />
+          <input type="datetime-local" id="dateTo" title="Datum a čas Do" />
         </div>
       </div>
       <div class="controls-group">
@@ -416,7 +416,7 @@
     }
 
 
-    // Filtrování dat na základě rozsahu (OPRAVENO pro filtraci dle času)
+// Filtrování dat na základě rozsahu (OPRAVENO: Podpora datetime-local)
     function filterData(data) {
       if (data.length === 0) return [];
       
@@ -443,27 +443,30 @@
           endDate = now;
           break;
         case 'custom':
+          // KLÍČOVÁ ZMĚNA: Převádíme přímo hodnoty z datetime-local
           if ($dateFrom.value) startDate = new Date($dateFrom.value);
           if ($dateTo.value) endDate = new Date($dateTo.value);
           
-          if (!startDate || !endDate || startDate.getTime() >= endDate.getTime()) {
+          if (!startDate || !endDate || startDate.getTime() >= endDate.getTime() || isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+            // Kontrola platnosti a smysluplnosti rozsahu
+            console.warn("Vlastní rozsah je neplatný nebo nesmyslný. Zobrazen celý soubor.");
             return data;
           }
-          endDate.setHours(23, 59, 59, 999); 
+          // Není potřeba setHours, protože datetime-local už obsahuje čas.
           break;
         case 'all':
         default:
           return data; 
       }
       
-      // 2. NOVÁ LOGIKA: Aplikace filtru času (pouze pokud je zvoleno "Dnes")
+      // 2. Logika pro Skok na čas (platí jen pro "Dnes")
       const selectedHour = $selJumpTime.value;
       if (range === 'today' && selectedHour !== "") {
           const hour = parseInt(selectedHour);
           if (!isNaN(hour)) {
               // Nastavíme konec rozsahu na DNEŠNÍ den a zvolenou hodinu
               endDate = new Date(startDate.getTime()); // Kopírujeme datum (začátek dneška)
-              endDate.setHours(hour, 59, 59, 999); // Nastavíme hodinu a konec minuty
+              endDate.setHours(hour, 59, 59, 999); 
           }
       }
 
