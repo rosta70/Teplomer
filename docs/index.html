@@ -182,36 +182,50 @@
       return `${year}-${month}-${day}`;
     }
 
-// Načte seznam dostupných CSV souborů
+// Načte seznam dostupných CSV souborů (včetně záložních cest)
     async function loadIndex() {
-      const file = "index.json";
-      try {
-        // KLÍČOVÁ OPRAVA: Používáme relativní cestu "data/index.json", 
-        // protože index.html je ve složce "docs/"
-        const r = await fetch(`data/${file}`); 
-        if (!r.ok) {
-          throw new Error(`Chyba při načítání ${file} (Status ${r.status})`);
+      // Všechny cesty, které by mohly fungovat, jsou seřazeny podle pravděpodobnosti
+      const paths = [
+          "data/index.json",         // 1. Správná relativní cesta (očekávaná)
+          "../data/index.json",      // 2. Záložní cesta (pro případ, že je docs/ index v podsložce)
+          "/docs/data/index.json",   // 3. Absolutní cesta od kořene domény
+      ]; 
+      const selFile = $("#selFile");
+      selFile.innerHTML = "";
+      $("#errorMessage").style.display = "none";
+
+      for (const path of paths) {
+        try {
+          // Zkus načíst soubor z aktuální cesty
+          const r = await fetch(path);
+          
+          if (r.ok) {
+            const index = await r.json();
+            
+            // Úspěšné načtení a plnění selectu
+            index.forEach(f => {
+              const opt = document.createElement("option");
+              opt.value = f;
+              opt.textContent = f;
+              selFile.appendChild(opt);
+            });
+            await loadCSV();
+            
+            // Nastaví výchozí rozsah a aktualizuje
+            $selRange.value = "last30";
+            update();
+            console.log(`Úspěšně načten index.json z cesty: ${path}`);
+            return; // Úspěšně načteno, ukončíme funkci
+          }
+        } catch (err) {
+          // Pokračujeme na další cestu
+          console.warn(`Pokus selhal pro cestu: ${path}. Chyba: ${err.message}`);
         }
-        const index = await r.json();
-        const selFile = $("#selFile");
-        selFile.innerHTML = "";
-        index.forEach(f => {
-          const opt = document.createElement("option");
-          opt.value = f;
-          opt.textContent = f;
-          selFile.appendChild(opt);
-        });
-        await loadCSV();
-        
-        // Nastaví výchozí rozsah na "last30" po načtení dat
-        $selRange.value = "last30";
-        update();
-        
-      } catch (err) {
-        // Upravená chybová hláška pro diagnostiku
-        $("#errorMessage").textContent = `Chyba při inicializaci: ${err.message}. Zkontrolujte, zda je cesta k index.json správná.`;
-        $("#errorMessage").style.display = "block";
       }
+
+      // Pokud všechny cesty selhaly
+      $("#errorMessage").textContent = `Kritická chyba: Nepodařilo se načíst index.json z očekávaných cest. Zkontrolujte, že soubor existuje v docs/data/ a že se správně nasadil.`;
+      $("#errorMessage").style.display = "block";
     }
 
     // Načte vybraný CSV soubor
