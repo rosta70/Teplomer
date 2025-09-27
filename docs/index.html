@@ -98,7 +98,7 @@
       <div class="controls-group">
         <label for="selRange">Zobrazit:</label>
         <select id="selRange">
-          <option value="today">Dnes</option>
+          <option value="today" selected>Dnes</option>
           <option value="yesterday">Včera</option>
           <option value="last7">Posledních 7 dní</option>
           <option value="last30">Posledních 30 dní</option>
@@ -106,7 +106,7 @@
           <option value="custom">Vlastní rozsah</option>
         </select>
         
-        <select id="selJumpTime" title="Rychlý skok na čas">
+        <select id="selJumpTime" title="Rychlý skok na čas" style="display: none;"> 
             <option value="">Skok na čas...</option>
             <option value="00">0:00</option>
             <option value="01">1:00</option>
@@ -256,7 +256,9 @@
           selFile.appendChild(opt);
         });
         await loadCSV();
-        $selRange.value = "last30";
+        
+        $selRange.value = "today"; // Nastavíme Dnes jako výchozí
+        toggleJumpTime(); // Zobrazí/skryje menu
         update();
     }
 
@@ -646,6 +648,17 @@
         }
     }
 
+    // --- Dynamické zobrazení/skrytí menu pro Skok na čas ---
+    function toggleJumpTime() {
+        const isToday = $selRange.value === 'today';
+        $selJumpTime.style.display = isToday ? 'block' : 'none';
+        
+        // Zabezpečení: Pokud se přepneme z "Dnes" na jiný rozsah, resetujeme výběr času
+        if (!isToday) {
+            $selJumpTime.value = "";
+        }
+    }
+
     // Obnovení uloženého tématu
     const savedTheme = localStorage.getItem('selectedTheme') || 'theme-dark';
     document.body.className = ''; 
@@ -657,6 +670,7 @@
     // Sloučíme akce pro selRange
     $selRange.addEventListener("change", () => {
         toggleCustomRangeInputs(); 
+        toggleJumpTime(); 
         update(); 
     });
 
