@@ -17,8 +17,8 @@
       --accent: #2dd4bf;
       --danger: #f43f5e;
       --info: #60a5fa;
-      --chart-bg: #171a21; /* ZMĚNA: Tmavé pozadí grafu */
-      --chart-legend-text: #e7edf4; /* ZMĚNA: Světlý text pro tmavé pozadí */
+      --chart-bg: #171a21; 
+      --chart-legend-text: #e7edf4; 
     }
 
     /* Téma 2: Křišťálově bílé (Crystal Light) */
@@ -43,8 +43,8 @@
       --accent: #22c55e;
       --danger: #ef4444;
       --info: #3b82f6;
-      --chart-bg: #111111; /* ZMĚNA: Tmavé pozadí grafu */
-      --chart-legend-text: #ffffff; /* ZMĚNA: Světlý text pro tmavé pozadí */
+      --chart-bg: #111111; 
+      --chart-legend-text: #ffffff; 
     }
 
 
@@ -76,7 +76,7 @@
     .custom-range-inputs{display:none;gap:12px;margin-top:12px;}
     .error-message{color:var(--danger);padding:10px;background:rgba(244,63,94,.1);border-radius:6px;border:1px solid var(--danger);margin-top:1rem;display:none;}
     
-    /* NOVÉ TŘÍDY PRO ZVÝRAZNĚNÍ STATISTIK */
+    /* TŘÍDY PRO ZVÝRAZNĚNÍ STATISTIK */
     .stat-max-temp{color: var(--danger); font-weight: 600;}
     .stat-min-temp{color: var(--info); font-weight: 600;}
     .stat-max-hum{color: var(--accent);} 
@@ -105,6 +105,16 @@
           <option value="all">Celý soubor</option>
           <option value="custom">Vlastní rozsah</option>
         </select>
+        
+        <select id="selJumpTime" title="Rychlý skok na čas">
+            <option value="">Skok na čas...</option>
+            <option value="08">8:00 (Ráno)</option>
+            <option value="12">12:00 (Poledne)</option>
+            <option value="14">14:00</option>
+            <option value="18">18:00 (Večer)</option>
+            <option value="22">22:00 (Noc)</option>
+        </select>
+        
         <div id="customRangeInputs" class="custom-range-inputs">
           <input type="date" id="dateFrom" title="Datum od" />
           <input type="date" id="dateTo" title="Datum do" />
@@ -151,12 +161,13 @@
     const $dateFrom = $("#dateFrom");
     const $dateTo = $("#dateTo");
     const $selTheme = $("#selTheme");
+    const $selJumpTime = $("#selJumpTime"); // NOVÉ
 
     // --- Pomocné ---
     // Mapování ID senzoru (ze sloupce 'source' v CSV) na popisek pro web
     const SENSOR_LABEL = { "UNI": "UNI", "Venek": "Venek", "Doma": "Doma" };
 
-    // NOVÉ: Centrální definice barev pro každý senzor a typ dat
+    // Centrální definice barev pro každý senzor a typ dat
     const SENSOR_COLORS = {
         "UNI": {
             temp: "#f43f5e",   // Malinově červená (UNI Teplota)
@@ -191,11 +202,11 @@
       return `${year}-${month}-${day}`;
     }
 
-    // Načte seznam dostupných CSV souborů (OPRAVENO: Jednoduchá cesta)
+    // Načte seznam dostupných CSV souborů
     async function loadIndex() {
       const file = "index.json";
       try {
-        // Používáme nejjednodušší relativní cestu, protože index.html je v docs/
+        // Používáme nejjednodušší relativní cestu
         const r = await fetch(`data/${file}`); 
         if (!r.ok) {
           // Pokud selže jednoduchá cesta, zkusíme záložní cestu
@@ -231,10 +242,10 @@
     }
 
 
-    // Načte vybraný CSV soubor (OPRAVENO: Jednoduchá cesta)
+    // Načte vybraný CSV soubor
     async function loadCSV() {
       const f = $("#selFile").value;
-      const fileUrl = `data/${f}`; // Nejjednodušší relativní cesta pro CSV
+      const fileUrl = `data/${f}`; 
       $("#errorMessage").style.display = "none";
       
       try {
@@ -484,14 +495,48 @@
       return rows.filter(r => activeSensors.includes(r.id));
     }
 
+    // --- Logika skoku na konkrétní čas v grafu (NOVÉ) ---
+    function jumpToTime(hour) {
+        if (!chart || !data.length || $selRange.value !== 'today') {
+            // Skok je možný jen v zobrazení "Dnes" a pokud existují data
+            return;
+        }
+
+        const now = new Date();
+        // Vytvoříme cílové datum pro DNEŠEK s požadovanou hodinou
+        const targetDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hour, 0, 0);
+
+        const xAxis = chart.scales.x;
+        if (!xAxis) return;
+
+        // Cílová pozice v milisekundách
+        const targetPosition = targetDate.getTime();
+
+        // Rozsah zobrazení: 2 hodiny (1 hodinu před a 1 hodinu po cíli)
+        const zoomDuration = 2 * 60 * 60 * 1000; 
+        const newMin = targetPosition - (zoomDuration / 2);
+        const newMax = targetPosition + (zoomDuration / 2);
+
+
+        chart.zoom({
+            x: {
+                min: newMin,
+                max: newMax
+            }
+        }, 'quiet'); 
+        
+        // Resetování výběru pro další použití, aby se select vrátil na "Skok na čas..."
+        $selJumpTime.value = "";
+    }
+
 
     function drawChart(datasets) {
       const isDarkMode = document.body.classList.contains("theme-dark") || document.body.classList.contains("theme-mono");
       
-      // ZMĚNA: Pevná bílá pro text v tmavém režimu pro spolehlivost
+      // Pevná bílá pro text v tmavém režimu pro spolehlivost
       const chartTextColor = isDarkMode ? '#FFFFFF' : 'var(--chart-legend-text)'; 
       
-      // Mřížka zůstává průhledná, ale musíme ji definovat uvnitř, protože se mění s režimem
+      // Mřížka se mění s režimem
       const gridColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : '#ddd';
 
       const config = {
@@ -503,7 +548,6 @@
           color: chartTextColor,
           scales: {
             x: { type: "time", time: { unit: "hour" }, ticks: { color: chartTextColor }, grid: { color: gridColor } },
-            // ZMĚNA: Přidána barva pro title titulky osy
             yT: { position: "left", title:{display:true,text:"°C", color: chartTextColor}, ticks: { color: chartTextColor }, grid: { color: gridColor } },
             yH: { position: "right", title:{display:true,text:"%", color: chartTextColor}, ticks: { color: chartTextColor }, grid: { drawOnChartArea: false, color: gridColor }, suggestedMin: 0, suggestedMax: 100 }
           },
@@ -520,7 +564,7 @@
       if (chart) {
         chart.data.datasets = datasets;
         
-        // ZMĚNA: Nastavení barvy titulku os
+        // Nastavení barvy titulku os
         chart.options.scales.yT.title.color = chartTextColor;
         chart.options.scales.yH.title.color = chartTextColor;
         
@@ -620,6 +664,14 @@
     $selRange.addEventListener("change", () => {
         toggleCustomRangeInputs(); // Přepne zobrazení polí
         update(); // Aktualizuje graf
+    });
+
+    // NOVÝ POSLUCHAČ: Rychlý skok na čas
+    $selJumpTime.addEventListener("change", (e) => {
+        const hour = parseInt(e.target.value);
+        if (!isNaN(hour) && e.target.value !== "") {
+            jumpToTime(hour);
+        }
     });
 
     // Akce pro přepínání témat
