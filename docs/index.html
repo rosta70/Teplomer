@@ -59,11 +59,14 @@
     select, input[type=date]{background:var(--card);color:var(--text);border:1px solid #333;padding:6px 10px;border-radius:6px;}
     button{background:var(--card);color:var(--text);border:1px solid #333;padding:6px 10px;border-radius:6px;cursor:pointer;transition:background .1s;}
     button:hover{background:#333;}
-    .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;padding:14px 0;}
-    .stat-card{background:var(--card);padding:14px;border-radius:8px;box-shadow:0 4px 6px -1px rgba(0,0,0,.1);}
+    /* UPRAVENO: Grid pro statistiky a jejich karty */
+    .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;padding:14px 0;}
+    .stat-card{background:var(--card);padding:14px;border-radius:8px;box-shadow:0 4px 6px -1px rgba(0,0,0,.1); transition: box-shadow 0.3s;}
+    .stat-card:hover{box-shadow:0 0 10px rgba(45, 212, 191, 0.4);}
     .stat-title{color:var(--muted);font-size:.8rem;font-weight:500;margin-bottom:4px;}
     .stat-value{font-size:1.5rem;font-weight:700;}
-    .stat-group{display:flex;justify-content:space-between;align-items:baseline;margin-top:6px;}
+    .stat-group{display:flex;justify-content:space-between;align-items:baseline;margin-top:6px; flex-wrap: wrap;}
+    .stat-detail{color:var(--muted); font-size: .85rem;}
     .stat-temp{color:var(--danger);}
     .stat-hum{color:var(--info);}
     .toggles{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0;}
@@ -160,7 +163,7 @@
             temp: "#059669",   // Tmavě zelená (Doma Teplota)
             hum:  "#6ee7b7"    // Světle zelená (Doma Vlhkost)
         },
-        "Terasa": { // Příklad pro budoucí senzor
+        "Terasa": { 
             temp: "#a855f7",   // Fialová (Terasa Teplota)
             hum:  "#d8b4fe"    // Světle fialová (Terasa Vlhkost)
         }
@@ -170,6 +173,7 @@
     let chart = null;
 
     function formatTime(t) {
+      // Vrací čas a datum pro statistiky
       return t.toLocaleString("cs-CZ", { dateStyle: "short", timeStyle: "short" });
     }
 
@@ -339,48 +343,83 @@
         const srows = rows.filter(r => r.id === id);
         if (srows.length === 0) return;
 
-        const temps = srows.map(r => r.temp).filter(t => t !== null);
-        const hums = srows.map(r => r.hum).filter(h => h !== null);
+        const temps = srows.filter(r => r.temp !== null);
+        const hums = srows.filter(r => r.hum !== null);
+        
+        // --- VÝPOČET TEPLOTY ---
+        const minT = temps.length ? temps.reduce((a, b) => b.temp < a.temp ? b : a) : null;
+        const maxT = temps.length ? temps.reduce((a, b) => b.temp > a.temp ? b : a) : null;
+        const sumT = temps.reduce((acc, r) => acc + r.temp, 0);
+        const avgT = temps.length ? (sumT / temps.length) : null;
+        
+        // --- VÝPOČET VLHKOSTI ---
+        const minH = hums.length ? hums.reduce((a, b) => b.hum < a.hum ? b : a) : null;
+        const maxH = hums.length ? hums.reduce((a, b) => b.hum > a.hum ? b : a) : null;
+        const sumH = hums.reduce((acc, r) => acc + r.hum, 0);
+        const avgH = hums.length ? (sumH / hums.length) : null;
+
+        // Poslední záznam
+        const lastRecord = srows[srows.length - 1];
 
         stats[id] = {
           name: SENSOR_LABEL[id] ?? id,
-          minTemp: temps.length ? Math.min(...temps).toFixed(2) : 'N/A',
-          maxTemp: temps.length ? Math.max(...temps).toFixed(2) : 'N/A',
-          avgTemp: temps.length ? (temps.reduce((a, b) => a + b, 0) / temps.length).toFixed(2) : 'N/A',
-          minHum: hums.length ? Math.min(...hums).toFixed(2) : 'N/A',
-          maxHum: hums.length ? Math.max(...hums).toFixed(2) : 'N/A',
-          avgHum: hums.length ? (hums.reduce((a, b) => a + b, 0) / hums.length).toFixed(2) : 'N/A',
-          lastTemp: srows[srows.length - 1].temp?.toFixed(2) ?? 'N/A',
-          lastHum: srows[srows.length - 1].hum?.toFixed(2) ?? 'N/A',
-          lastTime: formatTime(srows[srows.length - 1].time)
+          // Teplota
+          minTemp: minT, maxTemp: maxT, avgTemp: avgT,
+          // Vlhkost
+          minHum: minH, maxHum: maxH, avgHum: avgH,
+          // Aktuální
+          lastTemp: lastRecord.temp, lastHum: lastRecord.hum,
+          lastTime: formatTime(lastRecord.time)
         };
       });
       return stats;
     }
 
-    // Renderování statistik
+    // Renderování statistik do karet
     function renderStats(rows) {
       const stats = calculateStats(rows);
       const container = $("#statsContainer");
       container.innerHTML = "";
+      
+      const showTemp = $("#chkTemp").checked;
+      const showHum = $("#chkHum").checked;
 
       for (const id in stats) {
         const s = stats[id];
         const card = document.createElement("div");
         card.classList.add("stat-card");
         
-        card.innerHTML = `
-          <div class="stat-title">${s.name}</div>
-          <div class="stat-value stat-temp">${s.lastTemp} °C</div>
-          <div class="stat-group">
-            <div class="stat-title">Min: <span class="stat-temp">${s.minTemp}</span> Max: <span class="stat-temp">${s.maxTemp}</span></div>
-            <div class="stat-title">${s.lastTime}</div>
-          </div>
-          <div class="stat-value stat-hum">${s.lastHum} %</div>
-          <div class="stat-group">
-            <div class="stat-title">Min: <span class="stat-hum">${s.minHum}</span> Max: <span class="stat-hum">${s.maxHum}</span></div>
-          </div>
-        `;
+        // ÚVOD: Jméno senzoru a čas posledního záznamu
+        let content = `<div class="stat-title">${s.name} (Aktuální: ${s.lastTime})</div><hr style="border-color:var(--muted);margin:10px 0;opacity:0.2"/>`;
+
+        // --- Zobrazení Teploty ---
+        if (showTemp && s.maxTemp) {
+            content += `
+                <div class="stat-title">TEPLOTA</div>
+                <div class="stat-value stat-temp">${s.lastTemp?.toFixed(2) ?? '—'} °C</div>
+                <div class="stat-group">
+                    <div class="stat-detail stat-temp">Min: ${s.minTemp.temp.toFixed(2)} °C <span style="font-size: 0.75rem">(${formatTime(s.minTemp.time)})</span></div>
+                    <div class="stat-detail stat-temp">Max: ${s.maxTemp.temp.toFixed(2)} °C <span style="font-size: 0.75rem">(${formatTime(s.maxTemp.time)})</span></div>
+                </div>
+                <div class="stat-title" style="margin-top: 5px;">Průměr: ${s.avgTemp.toFixed(2)} °C</div>
+            `;
+        }
+
+        // --- Zobrazení Vlhkosti ---
+        if (showHum && s.maxHum) {
+             content += `<hr style="border-color:var(--muted);margin:10px 0;opacity:0.2"/>`;
+             content += `
+                <div class="stat-title">VLHKOST</div>
+                <div class="stat-value stat-hum">${s.lastHum?.toFixed(2) ?? '—'} %</div>
+                <div class="stat-group">
+                    <div class="stat-detail stat-hum">Min: ${s.minHum.hum.toFixed(2)} % <span style="font-size: 0.75rem">(${formatTime(s.minHum.time)})</span></div>
+                    <div class="stat-detail stat-hum">Max: ${s.maxHum.hum.toFixed(2)} % <span style="font-size: 0.75rem">(${formatTime(s.maxHum.time)})</span></div>
+                </div>
+                <div class="stat-title" style="margin-top: 5px;">Průměr: ${s.avgHum.toFixed(2)} %</div>
+            `;
+        }
+        
+        card.innerHTML = content;
         container.appendChild(card);
       }
     }
