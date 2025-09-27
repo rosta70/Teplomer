@@ -49,55 +49,9 @@
 
 
     html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Helvetica,Arial;}
-
-    /* UPRAVENO: Záhlaví pro vycentrování nadpisu */
-    header {
-        display: flex;
-        align-items: center;
-        padding: 14px 18px;
-        border-bottom: 1px solid #222;
-        justify-content: space-between; /* Rozprostře logo na začátek, nadpis na střed */
-        position: relative; /* Pro absolutní pozicování nadpisu */
-    }
-
-    /* NOVÉ LOGO: Teploměr/Teplota */
-    header .logo {
-        width: 22px;
-        height: 22px;
-        background: linear-gradient(to top, var(--danger) 0%, var(--danger) 50%, var(--info) 50%, var(--info) 100%); /* Červená dole, modrá nahoře */
-        border-radius: 50%; /* Udělá to kruh */
-        box-shadow: 0 0 0 2px var(--card);
-        position: relative; /* Pro pseudo-element */
-        overflow: hidden; /* Pro oříznutí vnitřního elementu */
-        z-index: 10; /* Aby bylo nad nadpisem, pokud se překryjí */
-    }
-    
-    /* NOVÉ: Vnitřní element pro efekt "rtuti" nebo kontrastu */
-    header .logo::before {
-        content: '';
-        position: absolute;
-        bottom: 0;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 60%;
-        height: 80%; /* Výška "rtuti" */
-        background: var(--text); /* Barva "rtuti" */
-        border-radius: 0 0 50% 50%; /* Zaoblení jen dole */
-        z-index: 1;
-        opacity: 0.15; /* Jemný efekt */
-    }
-
-    /* UPRAVENO: Cílíme přímo na nadpis v záhlaví a absolutně ho pozicujeme pro přesné vycentrování */
-    header h1 {
-        position: absolute;
-        left: 50%;
-        transform: translateX(-50%); /* Posune o polovinu své šířky zpět, přesně na střed */
-        margin: 0; /* Zajišťuje, že nemá žádné okraje, které by posunuly střed */
-        font-size: 1.4rem;
-        font-weight: 600;
-        white-space: nowrap; /* Zabrání zalomení nadpisu */
-    }
-
+    header{display:flex;align-items:center;gap:.6rem;padding:14px 18px;border-bottom:1px solid #222;}
+    header .logo{width:22px;height:22px;background:radial-gradient(circle at 30% 30%,#ffd166 0,#2dd4bf 20%,#171a21 60%);border-radius:6px;box-shadow:0 0 0 2px var(--card);}
+    h1{margin:0;font-size:1.4rem;font-weight:600;}
     main{max-width:1200px;margin:1rem auto;padding:0 18px;}
     .controls{display:flex;flex-wrap:wrap;gap:12px;padding:14px 0;border-bottom:1px solid var(--card);}
     .controls-group{display:flex;gap:12px;flex-wrap:wrap;align-items:center;}
@@ -128,29 +82,30 @@
     .stat-max-hum{color: var(--accent);} 
     .stat-min-hum{color: var(--muted);} 
 
-    /* ... stávající CSS ... */
-
+    /* === VYLEPŠENÍ MOBILITY === */
     @media (max-width: 700px) {
         main {padding: 0 12px;} /* Mírné zmenšení paddingu na mobilu */
         
-        /* Ovládací prvky na mobilu */
+        /* Hlavní kontejner ovládání je vertikální */
         .controls {
-            flex-direction: column; /* NOVÉ: Všechny controls-group pod sebou */
-            gap: 16px; /* Větší mezera mezi skupinami */
+            flex-direction: column; 
+            gap: 16px; 
         }
         
+        /* Každá skupina zabere plnou šířku a zalamuje se */
         .controls-group {
-            width: 100%; /* Skupiny zaberou celou šířku */
+            width: 100%; 
             flex-wrap: wrap; 
             justify-content: space-between;
-            gap: 8px; /* Jemnější mezera mezi prvky ve skupině */
+            gap: 8px; 
         }
         
-        /* Selektory a tlačítka vyplní prostor rovnoměrně */
+        /* Selektory a Inputy se roztáhnou a vyplní řádek rovnoměrně */
         .controls-group select,
-        .controls-group button,
+        .controls-group input[type=date],
+        .controls-group input[type=text],
         .controls-group .custom-range-inputs input {
-            flex-grow: 1; /* NOVÉ: Prvky se roztáhnou a vyplní řádek */
+            flex-grow: 1; 
             min-width: 120px;
         }
 
@@ -160,6 +115,7 @@
             min-width: 100px;
         }
     }
+
   </style>
 </head>
 <body class="theme-dark">
@@ -628,8 +584,17 @@
           plugins: {
             legend: { labels: { color: chartTextColor, font:{weight:"600"} } },
             zoom: {
-              zoom: { wheel:{enabled:true}, pinch:{enabled:true}, mode:"x" },
-              pan:  { enabled:true, mode:"x" }
+              // OPTIMALIZACE PRO DOTYKOVÉ OVLÁDÁNÍ
+              zoom: { 
+                  wheel:{enabled:true}, 
+                  pinch:{enabled:true, threshold: 0.05}, // Zvýšená citlivost pro snazší PINCH-TO-ZOOM (0.05 je velmi citlivé)
+                  mode:"x" 
+              },
+              pan:  { 
+                  enabled:true, 
+                  mode:"x",
+                  threshold: 5 // Větší práh, aby se pan (posun) neaktivoval při scrollu stránky
+              }
             }
           }
         }
@@ -757,8 +722,7 @@
         // Graf i statistiky se aktualizují, protože filterData ořízne konec dat na zvolenou hodinu
         update(); 
         
-        // ZMĚNA: TENTO ŘÁDEK BYL ODSTRANĚN, aby zůstala vybraná hodina viditelná
-        // $selJumpTime.value = ""; 
+        // Hodnota se NENÍ resetuje, aby zůstala vybraná hodina viditelná v selectu
     });
 
     // Akce pro přepínání témat
