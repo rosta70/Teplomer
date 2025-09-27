@@ -19,7 +19,7 @@
       --info: #60a5fa;
       --chart-bg: #171a21; 
       --chart-legend-text: #e7edf4; 
-      --warning: #facc15; /* NOVÉ: Žlutá pro průměry */
+      --warning: #facc15; 
     }
 
     /* Téma 2: Křišťálově bílé (Crystal Light) */
@@ -33,7 +33,7 @@
       --info: #3b82f6;
       --chart-bg: #f5f5f5;
       --chart-legend-text: #111;
-      --warning: #eab308; /* NOVÉ: Žlutá pro průměry */
+      --warning: #eab308;
     }
 
     /* Téma 3: Černá a Bílá (Monochrome) */
@@ -47,7 +47,7 @@
       --info: #3b82f6;
       --chart-bg: #111111; 
       --chart-legend-text: #ffffff; 
-      --warning: #facc15; /* NOVÉ: Žlutá pro průměry */
+      --warning: #facc15;
     }
 
 
@@ -59,16 +59,16 @@
         align-items: center;
         padding: 14px 18px;
         border-bottom: 1px solid #222;
-        justify-content: space-between; /* Rozprostře logo na začátek, nadpis na střed */
-        position: relative; /* Pro absolutní pozicování nadpisu */
+        justify-content: space-between; 
+        position: relative; 
     }
 
     /* NOVÉ LOGO: Teploměr/Teplota */
     header .logo {
         width: 22px;
         height: 22px;
-        background: linear-gradient(to top, var(--danger) 0%, var(--danger) 50%, var(--info) 50%, var(--info) 100%); /* Červená dole, modrá nahoře */
-        border-radius: 50%; /* Udělá to kruh */
+        background: linear-gradient(to top, var(--danger) 0%, var(--danger) 50%, var(--info) 50%, var(--info) 100%); 
+        border-radius: 50%; 
         box-shadow: 0 0 0 2px var(--card);
         position: relative; 
         overflow: hidden; 
@@ -115,19 +115,36 @@
     .stat-group{display:flex;justify-content:space-between;align-items:baseline;margin-top:6px; flex-wrap: wrap;}
     .stat-detail{color:var(--muted); font-size: .85rem;}
     
-    /* Původní barvy (pro aktuální data) */
+    /* NOVÉ/OBNOVENÉ STYLY PRO PŘEPÍNAČE SENZORŮ */
+    .toggles{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0;}
+    .toggle{
+        padding:4px 10px;
+        border-radius:20px;
+        font-size:.9rem;
+        cursor:pointer;
+        background:var(--card);
+        border:1px solid var(--muted); /* Důležité: Tmavý okraj, aby to vypadalo jako tlačítko */
+        transition:background .1s;
+    }
+    .toggle.active{
+        background:var(--accent); /* Změna pozadí pro aktivní stav */
+        border-color:var(--accent);
+        color:var(--bg); /* Tmavý text na světlém pozadí */
+        font-weight:600;
+    }
+
+    /* BARVY HODNOT */
     .stat-temp{color:var(--danger);}
     .stat-hum{color:var(--info);}
-    
-    /* NOVÉ: ŽLUTÁ pro PRŮMĚRY */
     .stat-avg{color: var(--warning); font-weight: 700;} 
-
-    /* TŘÍDY PRO ZVÝRAZNĚNÍ STATISTIK */
     .stat-max-temp{color: var(--danger); font-weight: 600;}
     .stat-min-temp{color: var(--info); font-weight: 600;}
     .stat-max-hum{color: var(--accent);} 
     .stat-min-hum{color: var(--muted);} 
 
+    .custom-range-inputs{display:none;gap:12px;margin-top:12px;}
+    .error-message{color:var(--danger);padding:10px;background:rgba(244,63,94,.1);border-radius:6px;border:1px solid var(--danger);margin-top:1rem;display:none;}
+    
     /* === VYLEPŠENÍ MOBILITY === */
     @media (max-width: 700px) {
         main {padding: 0 12px;} 
@@ -408,12 +425,15 @@
         const isCustom = $selRange.value === 'custom';
         $("#customRangeInputs").style.display = isCustom ? 'flex' : 'none';
         
+        // Nastavení výchozích hodnot, pokud je "Custom" vybráno poprvé
         if (isCustom && !$dateFrom.value && data.length > 0) {
-            const firstDate = data[0].time;
-            const lastDate = data[data.length - 1].time;
+            // Použijeme přesný čas pro datetime-local
+            const lastDate = new Date();
+            const firstDate = new Date(lastDate.getTime() - 30 * 24 * 60 * 60 * 1000); 
             
-            $dateFrom.value = formatDateForInput(firstDate);
-            $dateTo.value = formatDateForInput(lastDate);
+            // Pro datetime-local musíme použít formát YYYY-MM-DDThh:mm:ss
+            $dateFrom.value = new Date(firstDate.getTime() - (firstDate.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
+            $dateTo.value = new Date(lastDate.getTime() - (lastDate.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
         }
     }
 
@@ -528,7 +548,6 @@
       
       // Zjistíme aktuální rozsah pro dynamické zobrazení titulku
       const range = $selRange.value;
-      // Změněno: "Včera" je nyní také považováno za "Aktuální/poslední" pro primární hodnotu
       const isCurrentTime = range === 'today' || range === 'yesterday';
       const mainTitle = isCurrentTime ? 'Aktuální' : 'Průměrná';
 
@@ -763,11 +782,13 @@
         $("#customRangeInputs").style.display = isCustom ? 'flex' : 'none';
         
         if (isCustom && !$dateFrom.value && data.length > 0) {
+            // Použijeme přesný čas pro datetime-local
             const lastDate = new Date();
-            const firstDate = new Date(lastDate.getTime() - 30 * 24 * 60 * 60 * 1000); // 30 dní zpět
+            const firstDate = new Date(lastDate.getTime() - 30 * 24 * 60 * 60 * 1000); 
             
-            $dateFrom.value = formatDateForInput(firstDate);
-            $dateTo.value = formatDateForInput(lastDate);
+            // Pro datetime-local musíme použít formát YYYY-MM-DDThh:mm:ss
+            $dateFrom.value = new Date(firstDate.getTime() - (firstDate.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
+            $dateTo.value = new Date(lastDate.getTime() - (lastDate.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
         }
     }
 
@@ -801,8 +822,6 @@
     $selJumpTime.addEventListener("change", (e) => {
         // Graf i statistiky se aktualizují, protože filterData ořízne konec dat na zvolenou hodinu
         update(); 
-        
-        // Hodnota se NENÍ resetuje, aby zůstala vybraná hodina viditelná v selectu
     });
 
     // Akce pro přepínání témat
