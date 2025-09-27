@@ -108,11 +108,30 @@
         
         <select id="selJumpTime" title="Rychlý skok na čas">
             <option value="">Skok na čas...</option>
+            <option value="00">0:00</option>
+            <option value="01">1:00</option>
+            <option value="02">2:00</option>
+            <option value="03">3:00</option>
+            <option value="04">4:00</option>
+            <option value="05">5:00</option>
+            <option value="06">6:00</option>
+            <option value="07">7:00</option>
             <option value="08">8:00 (Ráno)</option>
+            <option value="09">9:00</option>
+            <option value="10">10:00</option>
+            <option value="11">11:00</option>
             <option value="12">12:00 (Poledne)</option>
+            <option value="13">13:00</option>
             <option value="14">14:00</option>
+            <option value="15">15:00</option>
+            <option value="16">16:00</option>
+            <option value="17">17:00</option>
             <option value="18">18:00 (Večer)</option>
+            <option value="19">19:00</option>
+            <option value="20">20:00</option>
+            <option value="21">21:00</option>
             <option value="22">22:00 (Noc)</option>
+            <option value="23">23:00</option>
         </select>
         
         <div id="customRangeInputs" class="custom-range-inputs">
@@ -497,8 +516,9 @@
 
     // --- Logika skoku na konkrétní čas v grafu (NOVÉ) ---
     function jumpToTime(hour) {
-        if (!chart || !data.length || $selRange.value !== 'today') {
-            // Skok je možný jen v zobrazení "Dnes" a pokud existují data
+        if (!chart || $selRange.value !== 'today') {
+            console.warn("Skok na čas je možný pouze při zobrazení 'Dnes'.");
+            $selJumpTime.value = ""; // Reset
             return;
         }
 
@@ -506,10 +526,7 @@
         // Vytvoříme cílové datum pro DNEŠEK s požadovanou hodinou
         const targetDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hour, 0, 0);
 
-        const xAxis = chart.scales.x;
-        if (!xAxis) return;
-
-        // Cílová pozice v milisekundách
+        // Cílová pozice v milisekundách (timestamp)
         const targetPosition = targetDate.getTime();
 
         // Rozsah zobrazení: 2 hodiny (1 hodinu před a 1 hodinu po cíli)
@@ -517,7 +534,7 @@
         const newMin = targetPosition - (zoomDuration / 2);
         const newMax = targetPosition + (zoomDuration / 2);
 
-
+        // Provedeme zoom a centrování grafu
         chart.zoom({
             x: {
                 min: newMin,
