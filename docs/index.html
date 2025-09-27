@@ -180,7 +180,7 @@
     const $dateFrom = $("#dateFrom");
     const $dateTo = $("#dateTo");
     const $selTheme = $("#selTheme");
-    const $selJumpTime = $("#selJumpTime"); // NOVÉ
+    const $selJumpTime = $("#selJumpTime");
 
     // --- Pomocné ---
     // Mapování ID senzoru (ze sloupce 'source' v CSV) na popisek pro web
@@ -337,7 +337,7 @@
     }
 
 
-    // Filtrování dat na základě rozsahu
+    // Filtrování dat na základě rozsahu (OPRAVENO pro filtraci dle času)
     function filterData(data) {
       if (data.length === 0) return [];
       
@@ -345,15 +345,15 @@
       const now = new Date();
       const range = $selRange.value;
 
-      // Nastavení data podle předvolby
+      // 1. Nastavení data podle předvolby
       switch (range) {
         case 'today':
           startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-          endDate = now;
+          endDate = now; // Výchozí konec je teď
           break;
         case 'yesterday':
           startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
-          endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // Do začátku dneška
+          endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate()); 
           break;
         case 'last7':
           startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -368,15 +368,24 @@
           if ($dateTo.value) endDate = new Date($dateTo.value);
           
           if (!startDate || !endDate || startDate.getTime() >= endDate.getTime()) {
-            // Při chybě rozsahu se vrátí "Celý soubor"
             return data;
           }
-          // Posun koncového data na konec dne
           endDate.setHours(23, 59, 59, 999); 
           break;
         case 'all':
         default:
-          return data; // Celý soubor
+          return data; 
+      }
+      
+      // 2. NOVÁ LOGIKA: Aplikace filtru času (pouze pokud je zvoleno "Dnes")
+      const selectedHour = $selJumpTime.value;
+      if (range === 'today' && selectedHour !== "") {
+          const hour = parseInt(selectedHour);
+          if (!isNaN(hour)) {
+              // Nastavíme konec rozsahu na DNEŠNÍ den a zvolenou hodinu
+              endDate = new Date(startDate.getTime()); // Kopírujeme datum (začátek dneška)
+              endDate.setHours(hour, 59, 59, 999); // Nastavíme hodinu a konec minuty
+          }
       }
 
       // Filtrování a zohlednění časové zóny
@@ -514,38 +523,6 @@
       return rows.filter(r => activeSensors.includes(r.id));
     }
 
-    // --- Logika skoku na konkrétní čas v grafu (NOVÉ) ---
-    function jumpToTime(hour) {
-        if (!chart || $selRange.value !== 'today') {
-            console.warn("Skok na čas je možný pouze při zobrazení 'Dnes'.");
-            $selJumpTime.value = ""; // Reset
-            return;
-        }
-
-        const now = new Date();
-        // Vytvoříme cílové datum pro DNEŠEK s požadovanou hodinou
-        const targetDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hour, 0, 0);
-
-        // Cílová pozice v milisekundách (timestamp)
-        const targetPosition = targetDate.getTime();
-
-        // Rozsah zobrazení: 2 hodiny (1 hodinu před a 1 hodinu po cíli)
-        const zoomDuration = 2 * 60 * 60 * 1000; 
-        const newMin = targetPosition - (zoomDuration / 2);
-        const newMax = targetPosition + (zoomDuration / 2);
-
-        // Provedeme zoom a centrování grafu
-        chart.zoom({
-            x: {
-                min: newMin,
-                max: newMax
-            }
-        }, 'quiet'); 
-        
-        // Resetování výběru pro další použití, aby se select vrátil na "Skok na čas..."
-        $selJumpTime.value = "";
-    }
-
 
     function drawChart(datasets) {
       const isDarkMode = document.body.classList.contains("theme-dark") || document.body.classList.contains("theme-mono");
@@ -679,16 +656,17 @@
     
     // Sloučíme akce pro selRange
     $selRange.addEventListener("change", () => {
-        toggleCustomRangeInputs(); // Přepne zobrazení polí
-        update(); // Aktualizuje graf
+        toggleCustomRangeInputs(); 
+        update(); 
     });
 
-    // NOVÝ POSLUCHAČ: Rychlý skok na čas
+    // NOVÝ POSLUCHAČ: Rychlý skok na čas (nyní jen spouští update)
     $selJumpTime.addEventListener("change", (e) => {
-        const hour = parseInt(e.target.value);
-        if (!isNaN(hour) && e.target.value !== "") {
-            jumpToTime(hour);
-        }
+        // Graf i statistiky se aktualizují, protože filterData ořízne konec dat na zvolenou hodinu
+        update(); 
+        
+        // Důležité: Resetujeme, aby uživatel mohl vybrat jinou hodinu
+        $selJumpTime.value = ""; 
     });
 
     // Akce pro přepínání témat
