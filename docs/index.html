@@ -679,8 +679,8 @@
         // Graf i statistiky se aktualizují, protože filterData ořízne konec dat na zvolenou hodinu
         update(); 
         
-        // Důležité: Resetujeme, aby uživatel mohl vybrat jinou hodinu
-        $selJumpTime.value = ""; 
+        // ZMĚNA: TENTO ŘÁDEK BYL ODSTRANĚN, aby zůstala vybraná hodina viditelná
+        // $selJumpTime.value = ""; 
     });
 
     // Akce pro přepínání témat
