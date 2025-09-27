@@ -182,13 +182,15 @@
       return `${year}-${month}-${day}`;
     }
 
-    // Načte seznam dostupných CSV souborů
+// Načte seznam dostupných CSV souborů
     async function loadIndex() {
       const file = "index.json";
       try {
-        const r = await fetch(`docs/data/${file}`);
+        // KLÍČOVÁ OPRAVA: Používáme relativní cestu "data/index.json", 
+        // protože index.html je ve složce "docs/"
+        const r = await fetch(`data/${file}`); 
         if (!r.ok) {
-          throw new Error(`Chyba při načítání ${file}`);
+          throw new Error(`Chyba při načítání ${file} (Status ${r.status})`);
         }
         const index = await r.json();
         const selFile = $("#selFile");
@@ -206,7 +208,8 @@
         update();
         
       } catch (err) {
-        $("#errorMessage").textContent = `Chyba při inicializaci: ${err.message}. Zkontrolujte, zda existuje soubor docs/data/index.json.`;
+        // Upravená chybová hláška pro diagnostiku
+        $("#errorMessage").textContent = `Chyba při inicializaci: ${err.message}. Zkontrolujte, zda je cesta k index.json správná.`;
         $("#errorMessage").style.display = "block";
       }
     }
