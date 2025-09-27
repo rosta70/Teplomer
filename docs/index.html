@@ -128,6 +128,38 @@
     .stat-max-hum{color: var(--accent);} 
     .stat-min-hum{color: var(--muted);} 
 
+    /* ... stávající CSS ... */
+
+    @media (max-width: 700px) {
+        main {padding: 0 12px;} /* Mírné zmenšení paddingu na mobilu */
+        
+        /* Ovládací prvky na mobilu */
+        .controls {
+            flex-direction: column; /* NOVÉ: Všechny controls-group pod sebou */
+            gap: 16px; /* Větší mezera mezi skupinami */
+        }
+        
+        .controls-group {
+            width: 100%; /* Skupiny zaberou celou šířku */
+            flex-wrap: wrap; 
+            justify-content: space-between;
+            gap: 8px; /* Jemnější mezera mezi prvky ve skupině */
+        }
+        
+        /* Selektory a tlačítka vyplní prostor rovnoměrně */
+        .controls-group select,
+        .controls-group button,
+        .controls-group .custom-range-inputs input {
+            flex-grow: 1; /* NOVÉ: Prvky se roztáhnou a vyplní řádek */
+            min-width: 120px;
+        }
+
+        /* Tlačítka se nemusí tak moc roztahovat (pro hezčí seskupení) */
+        .controls-group button {
+            flex-grow: 0; 
+            min-width: 100px;
+        }
+    }
   </style>
 </head>
 <body class="theme-dark">
