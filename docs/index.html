@@ -487,10 +487,12 @@
 
     function drawChart(datasets) {
       const isDarkMode = document.body.classList.contains("theme-dark") || document.body.classList.contains("theme-mono");
-      const chartTextColor = isDarkMode ? 'var(--text)' : 'var(--chart-legend-text)';
       
-      // UPRAVENO: Místo pevné barvy mřížky použijeme velmi tmavou, ale průhlednou barvu pro tmavý režim
-      const gridColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : '#ddd'; // Nyní velmi jemná bílá pro dark mode
+      // ZMĚNA: Pevná bílá pro text v tmavém režimu pro spolehlivost
+      const chartTextColor = isDarkMode ? '#FFFFFF' : 'var(--chart-legend-text)'; 
+      
+      // Mřížka zůstává průhledná, ale musíme ji definovat uvnitř, protože se mění s režimem
+      const gridColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : '#ddd';
 
       const config = {
         type: "line",
@@ -501,8 +503,9 @@
           color: chartTextColor,
           scales: {
             x: { type: "time", time: { unit: "hour" }, ticks: { color: chartTextColor }, grid: { color: gridColor } },
-            yT: { position: "left", title:{display:true,text:"°C"}, ticks: { color: chartTextColor }, grid: { color: gridColor } },
-            yH: { position: "right", title:{display:true,text:"%"}, ticks: { color: chartTextColor }, grid: { drawOnChartArea: false, color: gridColor }, suggestedMin: 0, suggestedMax: 100 }
+            // ZMĚNA: Přidána barva pro title titulky osy
+            yT: { position: "left", title:{display:true,text:"°C", color: chartTextColor}, ticks: { color: chartTextColor }, grid: { color: gridColor } },
+            yH: { position: "right", title:{display:true,text:"%", color: chartTextColor}, ticks: { color: chartTextColor }, grid: { drawOnChartArea: false, color: gridColor }, suggestedMin: 0, suggestedMax: 100 }
           },
           plugins: {
             legend: { labels: { color: chartTextColor, font:{weight:"600"} } },
@@ -516,6 +519,11 @@
 
       if (chart) {
         chart.data.datasets = datasets;
+        
+        // ZMĚNA: Nastavení barvy titulku os
+        chart.options.scales.yT.title.color = chartTextColor;
+        chart.options.scales.yH.title.color = chartTextColor;
+        
         chart.options.scales.x.ticks.color = chartTextColor;
         chart.options.scales.yT.ticks.color = chartTextColor;
         chart.options.scales.yH.ticks.color = chartTextColor;
