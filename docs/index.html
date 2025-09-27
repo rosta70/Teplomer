@@ -49,9 +49,55 @@
 
 
     html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Helvetica,Arial;}
-    header{display:flex;align-items:center;gap:.6rem;padding:14px 18px;border-bottom:1px solid #222;}
-    header .logo{width:22px;height:22px;background:radial-gradient(circle at 30% 30%,#ffd166 0,#2dd4bf 20%,#171a21 60%);border-radius:6px;box-shadow:0 0 0 2px var(--card);}
-    h1{margin:0;font-size:1.4rem;font-weight:600;}
+
+    /* UPRAVENO: Záhlaví pro vycentrování nadpisu */
+    header {
+        display: flex;
+        align-items: center;
+        padding: 14px 18px;
+        border-bottom: 1px solid #222;
+        justify-content: space-between; /* Rozprostře logo na začátek, nadpis na střed */
+        position: relative; /* Pro absolutní pozicování nadpisu */
+    }
+
+    /* NOVÉ LOGO: Teploměr/Teplota */
+    header .logo {
+        width: 22px;
+        height: 22px;
+        background: linear-gradient(to top, var(--danger) 0%, var(--danger) 50%, var(--info) 50%, var(--info) 100%); /* Červená dole, modrá nahoře */
+        border-radius: 50%; /* Udělá to kruh */
+        box-shadow: 0 0 0 2px var(--card);
+        position: relative; /* Pro pseudo-element */
+        overflow: hidden; /* Pro oříznutí vnitřního elementu */
+        z-index: 10; /* Aby bylo nad nadpisem, pokud se překryjí */
+    }
+    
+    /* NOVÉ: Vnitřní element pro efekt "rtuti" nebo kontrastu */
+    header .logo::before {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 60%;
+        height: 80%; /* Výška "rtuti" */
+        background: var(--text); /* Barva "rtuti" */
+        border-radius: 0 0 50% 50%; /* Zaoblení jen dole */
+        z-index: 1;
+        opacity: 0.15; /* Jemný efekt */
+    }
+
+    /* UPRAVENO: Cílíme přímo na nadpis v záhlaví a absolutně ho pozicujeme pro přesné vycentrování */
+    header h1 {
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%); /* Posune o polovinu své šířky zpět, přesně na střed */
+        margin: 0; /* Zajišťuje, že nemá žádné okraje, které by posunuly střed */
+        font-size: 1.4rem;
+        font-weight: 600;
+        white-space: nowrap; /* Zabrání zalomení nadpisu */
+    }
+
     main{max-width:1200px;margin:1rem auto;padding:0 18px;}
     .controls{display:flex;flex-wrap:wrap;gap:12px;padding:14px 0;border-bottom:1px solid var(--card);}
     .controls-group{display:flex;gap:12px;flex-wrap:wrap;align-items:center;}
