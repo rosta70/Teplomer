@@ -49,9 +49,53 @@
 
 
     html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Helvetica,Arial;}
-    header{display:flex;align-items:center;gap:.6rem;padding:14px 18px;border-bottom:1px solid #222;}
-    header .logo{width:22px;height:22px;background:radial-gradient(circle at 30% 30%,#ffd166 0,#2dd4bf 20%,#171a21 60%);border-radius:6px;box-shadow:0 0 0 2px var(--card);}
-    h1{margin:0;font-size:1.4rem;font-weight:600;}
+    
+    /* UPRAVENO: Záhlaví pro vycentrování nadpisu */
+    header {
+        display: flex;
+        align-items: center;
+        padding: 14px 18px;
+        border-bottom: 1px solid #222;
+        justify-content: space-between; /* Rozprostře logo na začátek, nadpis na střed */
+        position: relative; /* Pro absolutní pozicování nadpisu */
+    }
+
+    /* NOVÉ LOGO: Teploměr/Teplota */
+    header .logo {
+        width: 22px;
+        height: 22px;
+        background: linear-gradient(to top, var(--danger) 0%, var(--danger) 50%, var(--info) 50%, var(--info) 100%); /* Červená dole, modrá nahoře */
+        border-radius: 50%; /* Udělá to kruh */
+        box-shadow: 0 0 0 2px var(--card);
+        position: relative; 
+        overflow: hidden; 
+        z-index: 10; 
+    }
+    header .logo::before {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 60%;
+        height: 80%; 
+        background: var(--text); 
+        border-radius: 0 0 50% 50%; 
+        z-index: 1;
+        opacity: 0.15;
+    }
+
+    /* UPRAVENO: Centrování H1 a Mobile Fix */
+    header h1 {
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%); 
+        margin: 0; 
+        font-size: 1.4rem;
+        font-weight: 600;
+        white-space: nowrap; 
+    }
+
     main{max-width:1200px;margin:1rem auto;padding:0 18px;}
     .controls{display:flex;flex-wrap:wrap;gap:12px;padding:14px 0;border-bottom:1px solid var(--card);}
     .controls-group{display:flex;gap:12px;flex-wrap:wrap;align-items:center;}
@@ -84,7 +128,7 @@
 
     /* === VYLEPŠENÍ MOBILITY === */
     @media (max-width: 700px) {
-        main {padding: 0 12px;} /* Mírné zmenšení paddingu na mobilu */
+        main {padding: 0 12px;} 
         
         /* Hlavní kontejner ovládání je vertikální */
         .controls {
@@ -362,7 +406,6 @@
         const isCustom = $selRange.value === 'custom';
         $("#customRangeInputs").style.display = isCustom ? 'flex' : 'none';
         
-        // Nastavení výchozích hodnot, pokud je "Custom" vybráno poprvé
         if (isCustom && !$dateFrom.value && data.length > 0) {
             const firstDate = data[0].time;
             const lastDate = data[data.length - 1].time;
@@ -576,6 +619,7 @@
           responsive: true,
           maintainAspectRatio: false,
           color: chartTextColor,
+          interaction: { mode: 'index', intersect: false }, // NOVÉ: Pro interaktivní plovoucí náhledy
           scales: {
             x: { type: "time", time: { unit: "hour" }, ticks: { color: chartTextColor }, grid: { color: gridColor } },
             yT: { position: "left", title:{display:true,text:"°C", color: chartTextColor}, ticks: { color: chartTextColor }, grid: { color: gridColor } },
@@ -583,11 +627,15 @@
           },
           plugins: {
             legend: { labels: { color: chartTextColor, font:{weight:"600"} } },
+            tooltip: { // NOVÉ: Vylepšení vzhledu tooltipu
+                bodyFont: { size: 12 },
+                titleFont: { size: 14, weight: 'bold' },
+                displayColors: true,
+            },
             zoom: {
-              // OPTIMALIZACE PRO DOTYKOVÉ OVLÁDÁNÍ
               zoom: { 
                   wheel:{enabled:true}, 
-                  pinch:{enabled:true, threshold: 0.05}, // Zvýšená citlivost pro snazší PINCH-TO-ZOOM (0.05 je velmi citlivé)
+                  pinch:{enabled:true, threshold: 0.05}, // Zvýšená citlivost pro snazší PINCH-TO-ZOOM
                   mode:"x" 
               },
               pan:  { 
@@ -601,25 +649,29 @@
       };
 
       if (chart) {
-        chart.data.datasets = datasets;
-        
-        // Nastavení barvy titulku os
+        // ... (Kód pro aktualizaci existujícího grafu)
         chart.options.scales.yT.title.color = chartTextColor;
         chart.options.scales.yH.title.color = chartTextColor;
-        
         chart.options.scales.x.ticks.color = chartTextColor;
         chart.options.scales.yT.ticks.color = chartTextColor;
         chart.options.scales.yH.ticks.color = chartTextColor;
         chart.options.plugins.legend.labels.color = chartTextColor;
-        
-        // Aktualizace mřížky v existujícím grafu
         chart.options.scales.x.grid.color = gridColor;
         chart.options.scales.yT.grid.color = gridColor;
         chart.options.scales.yH.grid.color = gridColor; 
-
         chart.update();
       } else {
         chart = new Chart($("#meteoChart"), config);
+        
+        // KLÍČOVÉ: ZABRÁNĚNÍ ZOOMU PROHLÍŽEČE NA DOTYKOVÝCH ZAŘÍZENÍCH
+        const canvas = $("#meteoChart");
+        if (canvas) {
+          canvas.addEventListener('touchstart', (e) => {
+              if (e.touches.length > 1) { // Pokud jsou dva nebo více prstů
+                  e.preventDefault(); // Zablokuje výchozí zoom prohlížeče
+              }
+          }, { passive: false });
+        }
       }
     }
 
