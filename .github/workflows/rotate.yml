@@ -2,8 +2,8 @@ name: Rotate history file
 
 on:
   schedule:
-    - cron: "5 0 1 * *"   # každý 1. den v měsíci v 00:05
-  workflow_dispatch:       # možnost ručního spuštění
+    - cron: "5 0 1 * *"   # každý 1. den v měsíci v 00:05 UTC
+  workflow_dispatch:      # možnost ručního spuštění
 
 permissions:
   contents: write
@@ -21,7 +21,8 @@ jobs:
           python-version: "3.x"
 
       - name: Install dependencies
-        run: pip install pytz
+        # ZMĚNA: Přidána knihovna python-dateutil
+        run: pip install pytz python-dateutil
 
       - name: Run rotation script
         run: python3 scripts/rotate_history.py
@@ -30,6 +31,7 @@ jobs:
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "actions@github.com"
+          # Maska pro commit je stále správná
           git add docs/data/history.csv docs/data/history_*.csv
           git commit -m "Rotate history files" || echo "No changes to commit"
           git push origin HEAD:main
