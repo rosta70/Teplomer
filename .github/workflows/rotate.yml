@@ -21,17 +21,23 @@ jobs:
           python-version: "3.x"
 
       - name: Install dependencies
-        # ZMĚNA: Přidána knihovna python-dateutil
+        # Potřebujeme pytz pro fetch_data (předpokládáme, že se spouští jinde) 
+        # a python-dateutil pro rotaci (odečet měsíce)
         run: pip install pytz python-dateutil
 
       - name: Run rotation script
+        # Přejmenuje history.csv na history_RRRR_MM.csv (za minulý měsíc) a založí nový prázdný history.csv
         run: python3 scripts/rotate_history.py
+
+      - name: Update index.json
+        # Aktualizuje index.json o cestu k novému archivnímu souboru
+        run: python3 scripts/update_index.py
 
       - name: Commit & push
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "actions@github.com"
-          # Maska pro commit je stále správná
-          git add docs/data/history.csv docs/data/history_*.csv
-          git commit -m "Rotate history files" || echo "No changes to commit"
+          # Commit všech relevantních souborů: nový history.csv, archivní soubor, aktualizovaný index.json
+          git add docs/data/history.csv docs/data/history_*.csv index.json
+          git commit -m "Rotate history files and update index" || echo "No changes to commit"
           git push origin HEAD:main
