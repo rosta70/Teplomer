@@ -7,7 +7,7 @@ import pytz
 # NOVÉ: Adresy používající ULOHA=nacti_data_jen_posledni, která vrací JSON slovník
 SENSORS = {
     "UNI": "https://brrr.cz/brrr.php?runpagephp=afterlogin&uloha=nacti_data_jen_posledni&ssid=Teplomer_UNI_2500&kod=49b5cf6b0607e62aa6d4cb10912cf107",
-    "Venek": "https://brrr.cz/brrr.php?runpagephp=afterlogin&uloha=nacti_data_jen_posledni&ssid=Teplomer_UNI_320&kod=fb2255b580a412aed10172ab7d973c7f",
+    "Venek": "https://brrr.cz/brrr.php?runpagephp=afterlogin&uloha=nacti_data_jen_posledni&ssid=Teplomer_UNI_14500&kod=156d6a2d4dae949f03b39fe2bc81a819",
     "Doma": "https://brrr.cz/brrr.php?runpagephp=afterlogin&uloha=nacti_data_jen_posledni&ssid=Teplomer_UNI_318&kod=b2038caff21963d4f356aca3ea30387b" 
 }
 
