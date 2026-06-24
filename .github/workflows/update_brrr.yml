@@ -2,7 +2,7 @@ name: Update brrr.cz data
 
 on:
   schedule:
-    - cron: "*/10 * * * *"   # každých 10 minut
+    - cron: "*/5 * * * *"   # každých 5 minut
   workflow_dispatch:          # možnost ručního spuštění
 
 permissions:
